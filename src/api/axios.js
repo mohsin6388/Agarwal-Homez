@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore.js";
 
-const baseURL = "http://localhost:5000/api/";
+const baseURL = "https://agarwal-homez-backend.onrender.com/api/";
 //  || 'https://prop-ai-whatsapp-chatbot.onrender.com/api/';
 
 export const api = axios.create({
