@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --chart-sent: #0B7A50;
+    --chart-replies: #1FB57A;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-page font-body text-text antialiased dark:bg-ink-950 dark:text-ink-100;
+    font-size: 15px;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+
+  h1 {
+    font-size: 2rem;
+    @apply font-extrabold tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-white dark:ring-offset-ink-950;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-primary-hover active:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm font-bold text-text shadow-card transition hover:bg-page dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 dark:hover:bg-ink-800;
+  }
+
+  .input-field {
+    @apply min-h-11 w-full rounded-xl border border-input-border bg-white px-3.5 py-2.5 text-[15px] text-text placeholder:text-text-muted/70 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 dark:focus:ring-primary/30;
+  }
+
+  .card {
+    @apply rounded-card border border-surface-border bg-white p-5 shadow-card dark:border-ink-800 dark:bg-ink-900 sm:p-6;
+  }
+
+  .page-description {
+    @apply mt-1 text-sm leading-6 text-text-muted dark:text-ink-400;
+  }
+
+  .table-scroll {
+    @apply w-full overflow-x-auto;
+  }
+}
+
+/* Keep long navigation usable on short screens without showing a scrollbar. */
+.sidebar-scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sidebar-scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
