@@ -1,10 +1,9 @@
 import { io } from "socket.io-client";
 import { useAuthStore } from "../store/authStore.js";
 
-const SOCKET_URL = "https://prop-ai-whatsapp-chatbot.onrender.com";
+const SOCKET_URL = "https://agarwal-homez-backend.onrender.com";
 
 let socket = null;
-
 export function getSocket() {
   if (socket) return socket;
   socket = io(SOCKET_URL, {
