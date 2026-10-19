@@ -125,13 +125,15 @@ export default function OutreachPage({ channel }) {
     //     .then((r) => r.data),
 
     queryFn: () =>
-      outreachApi.jobs({
-        channel,
-        page,
-        limit: 50,
-        ...(campaignId ? { campaignId } : {}),
-        ...(filter ? { status: filter } : {}),
-      }),
+      outreachApi
+        .jobs({
+          channel,
+          page,
+          limit: 50,
+          ...(campaignId ? { campaignId } : {}),
+          ...(filter ? { status: filter } : {}),
+        })
+        .then((r) => r.data),
     placeholderData: (prev) => prev,
     staleTime: 0,
     refetchOnMount: "always",
