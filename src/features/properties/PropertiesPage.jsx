@@ -1,22 +1,338 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Plus, Search, Download, Upload, Pencil, Check, Loader2, FileText } from 'lucide-react';
-import { propertyApi } from '../../api/propertyApi.js';
-import PropertyFormModal from './PropertyFormModal.jsx';
-import ImportPropertiesModal from './ImportPropertiesModal.jsx';
-const COLS=[['projectName','Project','text'],['propertyType','Type','text'],['bhk','BHK','text'],['sizeSqft','Area (sq ft)','number'],['price','Price (₹)','number'],['location','Location','text'],['floor','Floor','text'],['status','Status','status'],['possession','Possession','text'],['brochureUrl','Brochure link','url']];
-const blank={projectName:'New project',propertyType:'Apartment',bhk:'',sizeSqft:'',price:'',location:'',floor:'',status:'available',possession:'',brochureUrl:''};
-export default function PropertiesPage(){
- const [rows,setRows]=useState([]),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[loading,setLoading]=useState(false),[saving,setSaving]=useState({}),[error,setError]=useState(''),[showImport,setShowImport]=useState(false),[editing,setEditing]=useState(null);
- const timers=useRef({});
- const fetchRows=useCallback(async()=>{setLoading(true);try{const r=await propertyApi.list({page:1,limit:100,...(search?{search}:{}),...(status?{status}:{})});setRows(r.data.properties||[]);}catch(e){setError(e?.response?.data?.message||'Properties load nahi hui');}finally{setLoading(false);}},[search,status]);
- useEffect(()=>{fetchRows();return()=>Object.values(timers.current).forEach(clearTimeout);},[fetchRows]);
- const change=(id,key,value)=>{setRows(prev=>prev.map(p=>p._id===id?{...p,[key]:value}:p));setSaving(prev=>({...prev,[`${id}:${key}`]:'saving'}));const timerKey=`${id}:${key}`;clearTimeout(timers.current[timerKey]);timers.current[timerKey]=setTimeout(async()=>{try{const patch={[key]:['price','sizeSqft'].includes(key)?(value===''?null:Number(value)):value};await propertyApi.update(id,patch);setSaving(prev=>({...prev,[timerKey]:'saved'}));setTimeout(()=>setSaving(prev=>({...prev,[timerKey]:''})),1800);}catch(e){setSaving(prev=>({...prev,[timerKey]:'error'}));setError(e?.response?.data?.message||'Cell save nahi hua');}},600);};
- const addRow=async()=>{setError('');try{await propertyApi.create({...blank,price:null,sizeSqft:null});await fetchRows();}catch(e){setError(e?.response?.data?.message||'Nayi row create nahi hui');}};
- const exportCsv=async()=>{try{const r=await (await import('../../api/axios.js')).default.get('/properties/export',{responseType:'blob'});const url=URL.createObjectURL(r.data);const a=document.createElement('a');a.href=url;a.download='properties.xlsx';a.click();URL.revokeObjectURL(url);}catch(e){setError('Export nahi hua');}};
- return <div className="space-y-4"><header><h1 className="font-display text-3xl font-extrabold text-ink-900 dark:text-white">Properties</h1><p className="mt-1 text-sm text-ink-500">Excel ki tarah seedha cell mein likhiye. AI yahi data dekhkar customer ko jawab deta hai.</p></header>
- <div className="flex flex-wrap items-center gap-2"><button className="btn-secondary" onClick={()=>setShowImport(true)}><Upload size={15} className="mr-2 inline"/>Excel se import</button><button className="btn-secondary" onClick={exportCsv}><Download size={15} className="mr-2 inline"/>Excel download</button><button className="btn-primary" onClick={addRow}><Plus size={15} className="mr-2 inline"/>Nayi row</button><span className="ml-auto text-sm text-ink-500">{rows.length} rows · apne-aap save hota hai</span></div>
- <div className="card flex flex-wrap gap-3"><label className="relative min-w-[220px] flex-1"><Search size={15} className="absolute left-3 top-3 text-ink-400"/><input className="input-field w-full pl-9" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Project ya location dhoondhein"/></label><select className="input-field min-w-[170px]" value={status} onChange={e=>setStatus(e.target.value)}><option value="">Sab status</option><option value="available">Available</option><option value="booked">Booked</option><option value="sold">Sold</option></select></div>
- {error&&<div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
- <div className="card overflow-hidden !p-0"><div className="overflow-x-auto"><table className="min-w-[1200px] border-collapse text-sm"><thead><tr className="sticky top-0 z-20 bg-ink-50 dark:bg-ink-800"><th className="sticky left-0 z-10 border p-2">#</th>{COLS.map(([,label],i)=><th key={label} className="border p-2 text-left"><span className="mr-2 text-xs text-ink-400">{String.fromCharCode(65+i)}</span>{label}</th>)}<th className="border p-2">Save status</th><th className="border p-2">Details</th></tr><tr><th className="sticky left-0 bg-white p-2 dark:bg-ink-900">1</th>{COLS.map(([key])=><th key={key} className="border bg-white p-1 text-xs font-normal dark:bg-ink-900">{key}</th>)}<th className="border"></th><th className="border"></th></tr></thead><tbody>{loading&&<tr><td colSpan={13} className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></td></tr>}{!loading&&rows.map((row,i)=><tr key={row._id} className="hover:bg-emerald-50/40 dark:hover:bg-ink-800/40"><td className="sticky left-0 border bg-white p-2 text-center text-xs text-ink-400 dark:bg-ink-900">{i+2}</td>{COLS.map(([key,label,type])=><td key={key} className="border p-1"><span className="sr-only">{label}</span>{type==='status'?<select aria-label={label} className={`min-w-[110px] rounded-lg border-0 p-2 text-xs font-bold ${row.status==='available'?'bg-emerald-100 text-emerald-800':row.status==='booked'?'bg-amber-100 text-amber-800':'bg-red-100 text-red-800'}`} value={row.status||'available'} onChange={e=>change(row._id,key,e.target.value)}><option value="available">Available</option><option value="booked">Booked</option><option value="sold">Sold</option></select>:<input aria-label={label} type={type==='number'?'number':'text'} className={`w-full min-w-[95px] rounded-md border border-transparent bg-transparent px-2 py-2 outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-ink-900 ${type==='number'?'text-right':''}`} value={row[key]??''} onChange={e=>change(row._id,key,e.target.value)}/>}</td>)}<td className="border px-2 text-center">{COLS.some(([key])=>saving[`${row._id}:${key}`]==='saving')?<span className="text-amber-700">Saving…</span>:COLS.some(([key])=>saving[`${row._id}:${key}`]==='error')?<span className="text-red-600">Error</span>:<span className="text-emerald-700"><Check size={15}/></span>}</td><td className="border p-2"><button className="btn-secondary px-2 py-1 text-xs" onClick={()=>setEditing(row)}><Pencil size={12} className="mr-1 inline"/>Details</button></td></tr>)}</tbody></table></div><div className="flex flex-wrap gap-4 border-t p-3 text-xs text-ink-500"><span><b className="text-emerald-700">Available</b> = AI customer ko batayega</span><span><b className="text-amber-700">Booked</b> / <b className="text-red-700">Sold</b> = AI is property ko suggest nahi karega</span></div></div>
- {showImport&&<ImportPropertiesModal onClose={()=>setShowImport(false)} onImported={()=>{setShowImport(false);fetchRows();}}/>}{editing&&<PropertyFormModal property={editing} onClose={()=>setEditing(null)} onSaved={()=>{setEditing(null);fetchRows();}}/>}</div>;
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Plus,
+  Search,
+  Download,
+  Upload,
+  Pencil,
+  Check,
+  Loader2,
+} from "lucide-react";
+import { propertyApi } from "../../api/propertyApi.js";
+import PropertyFormModal from "./PropertyFormModal.jsx";
+import ImportPropertiesModal from "./ImportPropertiesModal.jsx";
+
+const COLS = [
+  ["projectName", "Project", "text"],
+  ["propertyType", "Type", "text"],
+  ["bhk", "BHK", "text"],
+  ["sizeSqft", "Area (sq ft)", "number"],
+  ["price", "Price (₹)", "number"],
+  ["location", "Location", "text"],
+  ["floor", "Floor", "text"],
+  ["status", "Status", "status"],
+  ["possession", "Possession", "text"],
+  ["brochureUrl", "Brochure link", "url"],
+];
+
+const blank = {
+  projectName: "New project",
+  propertyType: "Apartment",
+  bhk: "",
+  sizeSqft: "",
+  price: "",
+  location: "",
+  floor: "",
+  status: "available",
+  possession: "",
+  brochureUrl: "",
+};
+
+export default function PropertiesPage() {
+  const [rows, setRows] = useState([]);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState({});
+  const [error, setError] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const timers = useRef({});
+
+  const fetchRows = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await propertyApi.list({
+        page: 1,
+        limit: 100,
+        ...(search ? { search } : {}),
+        ...(status ? { status } : {}),
+      });
+      setRows(response.data.properties || []);
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message || "Could not load properties.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [search, status]);
+
+  useEffect(() => {
+    fetchRows();
+    return () => Object.values(timers.current).forEach(clearTimeout);
+  }, [fetchRows]);
+
+  const change = (id, key, value) => {
+    setRows((previous) =>
+      previous.map((property) =>
+        property._id === id ? { ...property, [key]: value } : property,
+      ),
+    );
+    setSaving((previous) => ({ ...previous, [`${id}:${key}`]: "saving" }));
+
+    const timerKey = `${id}:${key}`;
+    clearTimeout(timers.current[timerKey]);
+    timers.current[timerKey] = setTimeout(async () => {
+      try {
+        const patch = {
+          [key]: ["price", "sizeSqft"].includes(key)
+            ? value === ""
+              ? null
+              : Number(value)
+            : value,
+        };
+        await propertyApi.update(id, patch);
+        setSaving((previous) => ({ ...previous, [timerKey]: "saved" }));
+        setTimeout(
+          () => setSaving((previous) => ({ ...previous, [timerKey]: "" })),
+          1800,
+        );
+      } catch (requestError) {
+        setSaving((previous) => ({ ...previous, [timerKey]: "error" }));
+        setError(
+          requestError?.response?.data?.message || "Could not save the cell.",
+        );
+      }
+    }, 600);
+  };
+
+  const addRow = async () => {
+    setError("");
+    try {
+      await propertyApi.create({ ...blank, price: null, sizeSqft: null });
+      await fetchRows();
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message || "Could not create a new row.",
+      );
+    }
+  };
+
+  const exportCsv = async () => {
+    try {
+      const response = await (
+        await import("../../api/axios.js")
+      ).default.get("/properties/export", { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "properties.xlsx";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Export failed.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h1 className="font-display text-3xl font-extrabold text-ink-900 dark:text-white">
+          Properties
+        </h1>
+        <p className="mt-1 text-sm text-ink-500">
+          Edit cells directly, just like in Excel. The AI uses this data to
+          answer customer questions.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn-secondary" onClick={() => setShowImport(true)}>
+          <Upload size={15} className="mr-2 inline" /> Import from Excel
+        </button>
+        <button className="btn-secondary" onClick={exportCsv}>
+          <Download size={15} className="mr-2 inline" /> Download Excel
+        </button>
+        <button className="btn-primary" onClick={addRow}>
+          <Plus size={15} className="mr-2 inline" /> Add row
+        </button>
+        <span className="ml-auto text-sm text-ink-500">
+          {rows.length} rows · Auto-saved
+        </span>
+      </div>
+
+      <div className="card flex flex-wrap gap-3">
+        <label className="relative min-w-[220px] flex-1">
+          <Search size={15} className="absolute left-3 top-3 text-ink-400" />
+          <input
+            className="input-field w-full pl-9"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by project or location"
+          />
+        </label>
+        <select
+          className="input-field min-w-[170px]"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          aria-label="Filter by property status"
+        >
+          <option value="">All statuses</option>
+          <option value="available">Available</option>
+          <option value="booked">Booked</option>
+          <option value="sold">Sold</option>
+        </select>
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl bg-red-50 p-3 text-sm text-red-700"
+        >
+          {error}
+        </div>
+      )}
+
+      <div className="card overflow-hidden !p-0">
+        <div className="overflow-x-auto">
+          <table className="min-w-[1200px] border-collapse text-sm">
+            <thead>
+              <tr className="sticky top-0 z-20 bg-ink-50 dark:bg-ink-800">
+                <th className="sticky left-0 z-10 border p-2">#</th>
+                {COLS.map(([, label], index) => (
+                  <th key={label} className="border p-2 text-left">
+                    <span className="mr-2 text-xs text-ink-400">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    {label}
+                  </th>
+                ))}
+                <th className="border p-2">Save status</th>
+                <th className="border p-2">Details</th>
+              </tr>
+              <tr>
+                <th className="sticky left-0 bg-white p-2 dark:bg-ink-900">
+                  1
+                </th>
+                {COLS.map(([key]) => (
+                  <th
+                    key={key}
+                    className="border bg-white p-1 text-xs font-normal dark:bg-ink-900"
+                  >
+                    {key}
+                  </th>
+                ))}
+                <th className="border" />
+                <th className="border" />
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={13} className="p-8 text-center">
+                    <Loader2 className="mx-auto animate-spin" />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                rows.map((row, index) => (
+                  <tr
+                    key={row._id}
+                    className="hover:bg-emerald-50/40 dark:hover:bg-ink-800/40"
+                  >
+                    <td className="sticky left-0 border bg-white p-2 text-center text-xs text-ink-400 dark:bg-ink-900">
+                      {index + 2}
+                    </td>
+                    {COLS.map(([key, label, type]) => (
+                      <td key={key} className="border p-1">
+                        <span className="sr-only">{label}</span>
+                        {type === "status" ? (
+                          <select
+                            aria-label={label}
+                            className={`min-w-[110px] rounded-lg border-0 p-2 text-xs font-bold ${row.status === "available" ? "bg-emerald-100 text-emerald-800" : row.status === "booked" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}
+                            value={row.status || "available"}
+                            onChange={(event) =>
+                              change(row._id, key, event.target.value)
+                            }
+                          >
+                            <option value="available">Available</option>
+                            <option value="booked">Booked</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        ) : (
+                          <input
+                            aria-label={label}
+                            type={type === "number" ? "number" : "text"}
+                            className={`w-full min-w-[95px] rounded-md border border-transparent bg-transparent px-2 py-2 outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-ink-900 ${type === "number" ? "text-right" : ""}`}
+                            value={row[key] ?? ""}
+                            onChange={(event) =>
+                              change(row._id, key, event.target.value)
+                            }
+                          />
+                        )}
+                      </td>
+                    ))}
+                    <td className="border px-2 text-center">
+                      {COLS.some(
+                        ([key]) => saving[`${row._id}:${key}`] === "saving",
+                      ) ? (
+                        <span className="text-amber-700">Saving…</span>
+                      ) : COLS.some(
+                          ([key]) => saving[`${row._id}:${key}`] === "error",
+                        ) ? (
+                        <span className="text-red-600">Error</span>
+                      ) : (
+                        <span className="text-emerald-700">
+                          <Check size={15} />
+                        </span>
+                      )}
+                    </td>
+                    <td className="border p-2">
+                      <button
+                        className="btn-secondary px-2 py-1 text-xs"
+                        onClick={() => setEditing(row)}
+                      >
+                        <Pencil size={12} className="mr-1 inline" /> Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap gap-4 border-t p-3 text-xs text-ink-500">
+          <span>
+            <b className="text-emerald-700">Available</b> = The AI can recommend
+            this property to customers.
+          </span>
+          <span>
+            <b className="text-amber-700">Booked</b> /{" "}
+            <b className="text-red-700">Sold</b> = The AI will not recommend
+            this property.
+          </span>
+        </div>
+      </div>
+
+      {showImport && (
+        <ImportPropertiesModal
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            setShowImport(false);
+            fetchRows();
+          }}
+        />
+      )}
+      {editing && (
+        <PropertyFormModal
+          property={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            fetchRows();
+          }}
+        />
+      )}
+    </div>
+  );
 }

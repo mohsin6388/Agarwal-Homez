@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from "react";
 import {
   Bot,
   Timer,
@@ -12,11 +12,11 @@ import {
   Power,
   Mail,
   AlertTriangle,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { settingsApi } from '../../api/settingsApi.js';
-import { whatsappApi } from '../../api/whatsappApi.js';
-import { emailApi } from '../../api/emailApi.js';
+import { settingsApi } from "../../api/settingsApi.js";
+import { whatsappApi } from "../../api/whatsappApi.js";
+import { emailApi } from "../../api/emailApi.js";
 
 /** Small reusable ON/OFF switch — no design-system toggle exists yet in this app. */
 function Toggle({ checked, onChange, disabled }) {
@@ -28,12 +28,12 @@ function Toggle({ checked, onChange, disabled }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-        checked ? 'bg-brand-600' : 'bg-ink-200 dark:bg-ink-700'
+        checked ? "bg-brand-600" : "bg-ink-200 dark:bg-ink-700"
       }`}
     >
       <span
         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-          checked ? 'translate-x-6' : 'translate-x-1'
+          checked ? "translate-x-6" : "translate-x-1"
         }`}
       />
     </button>
@@ -46,8 +46,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [toast, setToast] = useState('');
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
 
   const [waStatus, setWaStatus] = useState(null);
   const [waLoading, setWaLoading] = useState(true);
@@ -57,12 +57,12 @@ export default function SettingsPage() {
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const res = await settingsApi.get();
       setSettings(res.data.settings);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Settings load nahi ho paayi');
+      setError(err?.response?.data?.message || "Could not load settings.");
     } finally {
       setLoading(false);
     }
@@ -100,35 +100,40 @@ export default function SettingsPage() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 2500);
+    setTimeout(() => setToast(""), 2500);
   };
 
   const patchSettings = async (updates) => {
     setSaving(true);
-    setError('');
+    setError("");
     // Optimistic update so toggles feel instant.
     setSettings((prev) => ({ ...prev, ...updates }));
     try {
       const res = await settingsApi.update(updates);
       setSettings(res.data.settings);
-      showToast('Saved');
+      showToast("Saved");
     } catch (err) {
-      setError(err?.response?.data?.message || 'Update fail ho gaya');
-      fetchSettings(); // roll back to server truth
+      setError(err?.response?.data?.message || "Update failed.");
+      fetchSettings(); // Roll back to the server state.
     } finally {
       setSaving(false);
     }
   };
 
   const handleDisconnect = async () => {
-    if (!window.confirm('WhatsApp disconnect karein? AI aur manual dono replies rukk jaayenge jab tak reconnect nahi karte.')) return;
+    if (
+      !window.confirm(
+        "Disconnect WhatsApp? Both AI and manual replies will stop until you reconnect.",
+      )
+    )
+      return;
     setWaBusy(true);
     try {
       await whatsappApi.disconnect();
       await fetchWaStatus();
-      showToast('WhatsApp disconnected');
+      showToast("WhatsApp disconnected");
     } catch (err) {
-      alert(err?.response?.data?.message || 'Disconnect fail ho gaya');
+      alert(err?.response?.data?.message || "Failed to disconnect WhatsApp.");
     } finally {
       setWaBusy(false);
     }
@@ -139,9 +144,9 @@ export default function SettingsPage() {
     try {
       await whatsappApi.reconnect();
       await fetchWaStatus();
-      showToast('WhatsApp reconnected');
+      showToast("WhatsApp reconnected");
     } catch (err) {
-      alert(err?.response?.data?.message || 'Reconnect fail ho gaya');
+      alert(err?.response?.data?.message || "Failed to reconnect WhatsApp.");
     } finally {
       setWaBusy(false);
     }
@@ -159,9 +164,11 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink-900 dark:text-white">Settings</h1>
+          <h1 className="font-display text-2xl font-bold text-ink-900 dark:text-white">
+            Settings
+          </h1>
           <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-            AI automation aur official Meta WhatsApp Cloud API yahan se control karein.
+            Manage AI automation and the official Meta WhatsApp Cloud API here.
           </p>
         </div>
         {toast && (
@@ -185,9 +192,11 @@ export default function SettingsPage() {
               <Bot size={20} />
             </span>
             <div>
-              <h2 className="text-base font-semibold text-ink-900 dark:text-white">AI Auto Reply</h2>
+              <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+                AI Auto Reply
+              </h2>
               <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
-                Jab ON ho, AI naye WhatsApp messages ka jawab khud-ba-khud deta hai.
+                When enabled, AI automatically replies to new WhatsApp messages.
               </p>
             </div>
           </div>
@@ -206,9 +215,12 @@ export default function SettingsPage() {
             <Timer size={20} />
           </span>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-ink-900 dark:text-white">AI Reply Delay</h2>
+            <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+              AI Reply Delay
+            </h2>
             <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
-              Reply bhejne se pehle AI kitni der rukega — zyada natural feel ke liye.
+              Choose how long the AI waits before replying for a more natural
+              conversation.
             </p>
             <div className="mt-3 flex gap-2">
               {DELAY_OPTIONS.map((secs) => (
@@ -218,8 +230,8 @@ export default function SettingsPage() {
                   onClick={() => patchSettings({ aiReplyDelaySeconds: secs })}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
                     settings?.aiReplyDelaySeconds === secs
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-ink-100 text-ink-600 hover:bg-ink-200 dark:bg-ink-800 dark:text-ink-300 dark:hover:bg-ink-700'
+                      ? "bg-brand-600 text-white"
+                      : "bg-ink-100 text-ink-600 hover:bg-ink-200 dark:bg-ink-800 dark:text-ink-300 dark:hover:bg-ink-700"
                   }`}
                 >
                   {secs}s
@@ -238,10 +250,12 @@ export default function SettingsPage() {
               <UserCog size={20} />
             </span>
             <div>
-              <h2 className="text-base font-semibold text-ink-900 dark:text-white">Human Takeover</h2>
+              <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+                Human Takeover
+              </h2>
               <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
-                ON karne par AI turant pura pause ho jaata hai — saari conversations aap khud manually
-                handle karenge, jab tak wapas OFF na karein.
+                When enabled, AI replies are paused immediately. You will handle
+                all conversations manually until you turn this off.
               </p>
             </div>
           </div>
@@ -253,7 +267,8 @@ export default function SettingsPage() {
         </div>
         {settings?.aiPaused && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-            AI abhi paused hai — koi bhi lead ko auto-reply nahi jaa raha.
+            AI is currently paused. No automatic replies are being sent to
+            leads.
           </p>
         )}
       </div>
@@ -261,15 +276,85 @@ export default function SettingsPage() {
       {/* Lead temperature alerts */}
       <div className="card mt-4">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"><BellRing size={20} /></span>
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <BellRing size={20} />
+          </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-ink-900 dark:text-white">Alert your lead on your number</h2>
-            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Jab AI conversation analyze karke lead ko Hot (default) ya selected Warm category mein score kare, contact details aur score aapke WhatsApp number par bhejne ki koshish hogi.</p>
+            <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+              Lead alerts to your WhatsApp number
+            </h2>
+            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+              When AI analyzes a conversation and scores a lead as Hot (default)
+              or the selected Warm category, it will attempt to send the contact
+              details and score to your WhatsApp number.
+            </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-              <div><label className="mb-1 block text-xs font-semibold text-ink-600 dark:text-ink-300">Your WhatsApp number (with country code)</label><input className="input-field" inputMode="tel" autoComplete="tel" placeholder="919876543210" value={settings?.leadAlertPhone || ''} onChange={(e) => setSettings((prev) => ({ ...prev, leadAlertPhone: e.target.value }))} /><p className="mt-1 text-[11px] text-ink-400">Example India: 919876543210. Do not include the + sign.</p></div>
-              <div><label className="mb-1 block text-xs font-semibold text-ink-600 dark:text-ink-300">Alert when lead is</label><select className="input-field" value={settings?.leadAlertLevel || 'hot'} onChange={(e) => setSettings((prev) => ({ ...prev, leadAlertLevel: e.target.value }))}><option value="hot">Hot only (default)</option><option value="hot_warm">Hot or Warm</option></select></div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-600 dark:text-ink-300">
+                  Your WhatsApp number (with country code)
+                </label>
+                <input
+                  className="input-field"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="919876543210"
+                  value={settings?.leadAlertPhone || ""}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      leadAlertPhone: e.target.value,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-[11px] text-ink-400">
+                  Example India: 919876543210. Do not include the + sign.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-600 dark:text-ink-300">
+                  Alert when lead is
+                </label>
+                <select
+                  className="input-field"
+                  value={settings?.leadAlertLevel || "hot"}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      leadAlertLevel: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="hot">Hot only (default)</option>
+                  <option value="hot_warm">Hot or Warm</option>
+                </select>
+              </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="max-w-xl text-xs leading-5 text-ink-500 dark:text-ink-400">Important: outside WhatsApp's 24-hour support window, Meta requires an approved alert template. Configure <code>META_WHATSAPP_LEAD_ALERT_TEMPLATE_NAME</code> on the backend for reliable alerts.</p><button type="button" disabled={saving} onClick={() => patchSettings({ leadAlertPhone: String(settings?.leadAlertPhone || '').trim(), leadAlertLevel: settings?.leadAlertLevel === 'hot_warm' ? 'hot_warm' : 'hot' })} className="btn-primary">{saving ? 'Saving…' : 'Save alert settings'}</button></div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="max-w-xl text-xs leading-5 text-ink-500 dark:text-ink-400">
+                Important: outside WhatsApp's 24-hour support window, Meta
+                requires an approved alert template. Configure{" "}
+                <code>META_WHATSAPP_LEAD_ALERT_TEMPLATE_NAME</code> on the
+                backend for reliable alerts.
+              </p>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() =>
+                  patchSettings({
+                    leadAlertPhone: String(
+                      settings?.leadAlertPhone || "",
+                    ).trim(),
+                    leadAlertLevel:
+                      settings?.leadAlertLevel === "hot_warm"
+                        ? "hot_warm"
+                        : "hot",
+                  })
+                }
+                className="btn-primary"
+              >
+                {saving ? "Saving…" : "Save alert settings"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -282,21 +367,73 @@ export default function SettingsPage() {
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-ink-900 dark:text-white">Bulk Email & Reply Tracking</h2>
-              {emailStatusLoading ? <span className="text-xs text-ink-400">Checking…</span> : (
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${emailStatus?.configured ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
-                  {emailStatus?.configured ? 'Brevo sending configured' : 'Setup required'}
+              <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+                Bulk Email & Reply Tracking
+              </h2>
+              {emailStatusLoading ? (
+                <span className="text-xs text-ink-400">Checking…</span>
+              ) : (
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${emailStatus?.configured ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"}`}
+                >
+                  {emailStatus?.configured
+                    ? "Brevo sending configured"
+                    : "Setup required"}
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Bulk emails Brevo HTTP API se bheje jaate hain. API key sirf backend environment variables mein rakhein.</p>
-            {emailStatusLoading ? <div className="mt-3 flex items-center gap-2 text-sm text-ink-400"><Loader2 size={16} className="animate-spin" /> Checking email provider…</div> : (
+            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+              Bulk emails are sent through the Brevo HTTP API. Keep your API key
+              in the backend environment variables only.
+            </p>
+            {emailStatusLoading ? (
+              <div className="mt-3 flex items-center gap-2 text-sm text-ink-400">
+                <Loader2 size={16} className="animate-spin" /> Checking email
+                provider…
+              </div>
+            ) : (
               <>
                 <div className="mt-4 space-y-2 border-t border-ink-100 pt-3 dark:border-ink-800">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-ink-500 dark:text-ink-400">From address</span><span className="break-all text-sm font-semibold text-ink-800 dark:text-ink-100">{emailStatus?.fromAddress || 'BREVO_FROM_EMAIL not configured'}</span></div>
-                  <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-ink-500 dark:text-ink-400">Inbound customer replies</span><span className={`text-sm font-semibold ${emailStatus?.inboundRepliesConfigured ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-300'}`}>{emailStatus?.inboundRepliesConfigured ? 'Configured' : 'Needs setup'}</span></div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm text-ink-500 dark:text-ink-400">
+                      From address
+                    </span>
+                    <span className="break-all text-sm font-semibold text-ink-800 dark:text-ink-100">
+                      {emailStatus?.fromAddress ||
+                        "BREVO_FROM_EMAIL not configured"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm text-ink-500 dark:text-ink-400">
+                      Inbound customer replies
+                    </span>
+                    <span
+                      className={`text-sm font-semibold ${emailStatus?.inboundRepliesConfigured ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-300"}`}
+                    >
+                      {emailStatus?.inboundRepliesConfigured
+                        ? "Configured"
+                        : "Needs setup"}
+                    </span>
+                  </div>
                 </div>
-                {!emailStatus?.configured || !emailStatus?.inboundRepliesConfigured ? <div className="mt-3 flex gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /><span>{emailStatus?.note || 'Email status API unavailable. Check backend and provider configuration.'} Read EMAIL_SETUP.md in the backend package for the DNS, webhook and environment setup.</span></div> : <p className="mt-3 text-xs text-green-700 dark:text-green-300">Sending and inbound reply tracking variables are present. Verify the sender domain, inbound MX records and both webhooks in Brevo.</p>}
+                {!emailStatus?.configured ||
+                !emailStatus?.inboundRepliesConfigured ? (
+                  <div className="mt-3 flex gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                    <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>
+                      {emailStatus?.note ||
+                        "Email status API unavailable. Check backend and provider configuration."}{" "}
+                      Read EMAIL_SETUP.md in the backend package for the DNS,
+                      webhook and environment setup.
+                    </span>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-green-700 dark:text-green-300">
+                    Sending and inbound reply tracking variables are present.
+                    Verify the sender domain, inbound MX records and both
+                    webhooks in Brevo.
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -309,7 +446,9 @@ export default function SettingsPage() {
           <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-300">
             <Smartphone size={20} />
           </span>
-          <h2 className="text-base font-semibold text-ink-900 dark:text-white">WhatsApp Settings</h2>
+          <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+            WhatsApp Settings
+          </h2>
         </div>
 
         {waLoading ? (
@@ -318,31 +457,45 @@ export default function SettingsPage() {
           </div>
         ) : !waStatus?.configured ? (
           <p className="mt-4 text-sm text-ink-500 dark:text-ink-400">
-            Meta WhatsApp Cloud API abhi configured nahi hai. Backend par META_WHATSAPP_ACCESS_TOKEN aur META_WHATSAPP_PHONE_NUMBER_ID set karein.
+            The Meta WhatsApp Cloud API is not configured yet. Set
+            META_WHATSAPP_ACCESS_TOKEN and META_WHATSAPP_PHONE_NUMBER_ID on the
+            backend.
           </p>
         ) : (
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between border-b border-ink-50 pb-3 dark:border-ink-800">
-              <span className="text-sm text-ink-500 dark:text-ink-400">Connected Number</span>
+              <span className="text-sm text-ink-500 dark:text-ink-400">
+                Connected Number
+              </span>
               <span className="text-sm font-semibold text-ink-900 dark:text-white">
-                {waStatus.phoneNumber ? `+${waStatus.phoneNumber}` : 'Not available'}
+                {waStatus.phoneNumber
+                  ? `+${waStatus.phoneNumber}`
+                  : "Not available"}
               </span>
             </div>
 
             <div className="flex items-center justify-between border-b border-ink-50 pb-3 dark:border-ink-800">
-              <span className="text-sm text-ink-500 dark:text-ink-400">Provider</span>
-              <span className="text-sm font-semibold text-ink-900 dark:text-white">Meta WhatsApp Cloud API</span>
-            </div>
-
-            <div className="flex items-center justify-between border-b border-ink-50 pb-3 dark:border-ink-800">
-              <span className="text-sm text-ink-500 dark:text-ink-400">Verified Name</span>
+              <span className="text-sm text-ink-500 dark:text-ink-400">
+                Provider
+              </span>
               <span className="text-sm font-semibold text-ink-900 dark:text-white">
-                {waStatus.verifiedName || 'Not available'}
+                Meta WhatsApp Cloud API
               </span>
             </div>
 
             <div className="flex items-center justify-between border-b border-ink-50 pb-3 dark:border-ink-800">
-              <span className="text-sm text-ink-500 dark:text-ink-400">Connection Status</span>
+              <span className="text-sm text-ink-500 dark:text-ink-400">
+                Verified Name
+              </span>
+              <span className="text-sm font-semibold text-ink-900 dark:text-white">
+                {waStatus.verifiedName || "Not available"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-ink-50 pb-3 dark:border-ink-800">
+              <span className="text-sm text-ink-500 dark:text-ink-400">
+                Connection Status
+              </span>
               {waStatus.disconnected ? (
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-red-600 dark:text-red-400">
                   <XCircle size={16} /> Disconnected
@@ -361,7 +514,11 @@ export default function SettingsPage() {
                   disabled={waBusy}
                   className="btn-primary flex items-center gap-2"
                 >
-                  {waBusy ? <Loader2 className="animate-spin" size={16} /> : <Power size={16} />}
+                  {waBusy ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Power size={16} />
+                  )}
                   Reconnect
                 </button>
               ) : (
@@ -370,7 +527,11 @@ export default function SettingsPage() {
                   disabled={waBusy}
                   className="btn-secondary flex items-center gap-2 !text-red-600 hover:!bg-red-50 dark:hover:!bg-red-900/20"
                 >
-                  {waBusy ? <Loader2 className="animate-spin" size={16} /> : <PowerOff size={16} />}
+                  {waBusy ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <PowerOff size={16} />
+                  )}
                   Disconnect
                 </button>
               )}
@@ -379,9 +540,92 @@ export default function SettingsPage() {
         )}
       </div>
       <section className="card mt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-xl font-bold text-ink-900 dark:text-white">Sales team</h2><p className="mt-1 text-sm text-ink-500">Site visits ke liye sales person ka naam aur phone manage karein.</p></div><button type="button" className="btn-secondary" onClick={() => setSettings(prev => ({ ...prev, salesTeam: [...(prev?.salesTeam || []), { name: '', phone: '' }] }))}>+ Add member</button></div>
-        <div className="mt-4 space-y-2">{(settings?.salesTeam || []).map((member,index)=><div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input className="input-field" aria-label="Sales person name" placeholder="Naam" value={member.name||''} onChange={e=>setSettings(prev=>({...prev,salesTeam:prev.salesTeam.map((x,i)=>i===index?{...x,name:e.target.value}:x)}))}/><input className="input-field" aria-label="Sales person phone" placeholder="Phone number" value={member.phone||''} onChange={e=>setSettings(prev=>({...prev,salesTeam:prev.salesTeam.map((x,i)=>i===index?{...x,phone:e.target.value}:x)}))}/><button className="btn-secondary" onClick={()=>setSettings(prev=>({...prev,salesTeam:prev.salesTeam.filter((_,i)=>i!==index)}))}>Remove</button></div>)}</div>
-        <div className="mt-3 flex justify-end"><button className="btn-primary" disabled={saving} onClick={()=>patchSettings({salesTeam:(settings?.salesTeam||[]).filter(x=>x.name?.trim()&&x.phone?.trim())})}>Save sales team</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-bold text-ink-900 dark:text-white">
+              Sales team
+            </h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Manage sales team members’ names and phone numbers for site
+              visits.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              setSettings((prev) => ({
+                ...prev,
+                salesTeam: [
+                  ...(prev?.salesTeam || []),
+                  { name: "", phone: "" },
+                ],
+              }))
+            }
+          >
+            + Add member
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {(settings?.salesTeam || []).map((member, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                className="input-field"
+                aria-label="Sales person name"
+                placeholder="Name"
+                value={member.name || ""}
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    salesTeam: prev.salesTeam.map((x, i) =>
+                      i === index ? { ...x, name: e.target.value } : x,
+                    ),
+                  }))
+                }
+              />
+              <input
+                className="input-field"
+                aria-label="Sales person phone"
+                placeholder="Phone number"
+                value={member.phone || ""}
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    salesTeam: prev.salesTeam.map((x, i) =>
+                      i === index ? { ...x, phone: e.target.value } : x,
+                    ),
+                  }))
+                }
+              />
+              <button
+                className="btn-secondary"
+                onClick={() =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    salesTeam: prev.salesTeam.filter((_, i) => i !== index),
+                  }))
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            className="btn-primary"
+            disabled={saving}
+            onClick={() =>
+              patchSettings({
+                salesTeam: (settings?.salesTeam || []).filter(
+                  (x) => x.name?.trim() && x.phone?.trim(),
+                ),
+              })
+            }
+          >
+            Save sales team
+          </button>
+        </div>
       </section>
     </div>
   );

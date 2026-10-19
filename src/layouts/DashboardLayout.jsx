@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -24,50 +24,78 @@ import {
   PanelLeftOpen,
   FileText,
   X,
-} from 'lucide-react';
-import { useAuthStore } from '../store/authStore.js';
-import { authApi } from '../api/authApi.js';
-import { useOutreachSummaryLive } from '../hooks/useOutreachLive.js';
+} from "lucide-react";
+import { useAuthStore } from "../store/authStore.js";
+import { authApi } from "../api/authApi.js";
+import { useOutreachSummaryLive } from "../hooks/useOutreachLive.js";
 
 // Restore the original accordion-style sidebar while keeping all new phase routes.
 const NAV_GROUPS = [
-  { type: 'link', to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { type: 'link', to: '/leads', label: 'Upload Data', icon: Upload },
-  { type: 'link', to: '/qualified-leads', label: 'Qualified Leads', icon: Flame },
+  { type: "link", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { type: "link", to: "/leads", label: "Upload Data", icon: Upload },
   {
-    type: 'group',
-    key: 'whatsapp',
-    label: 'WhatsApp',
+    type: "link",
+    to: "/qualified-leads",
+    label: "Qualified Leads",
+    icon: Flame,
+  },
+  {
+    type: "group",
+    key: "whatsapp",
+    label: "WhatsApp",
     icon: MessageCircle,
     children: [
-      { to: '/whatsapp/conversations', label: 'Conversations', icon: MessageSquare },
-      { to: '/outreach/whatsapp', label: 'Bulk Messages', icon: Smartphone, channel: 'whatsapp' },
-      { to: '/whatsapp/leads', label: 'WhatsApp leads', icon: Users },
-      { to: '/whatsapp/templates', label: 'Templates', icon: FileText },
+      {
+        to: "/whatsapp/conversations",
+        label: "Conversations",
+        icon: MessageSquare,
+      },
+      {
+        to: "/outreach/whatsapp",
+        label: "Bulk Messages",
+        icon: Smartphone,
+        channel: "whatsapp",
+      },
+      { to: "/whatsapp/leads", label: "WhatsApp Leads", icon: Users },
+      { to: "/whatsapp/templates", label: "Templates", icon: FileText },
     ],
   },
   {
-    type: 'group',
-    key: 'email',
-    label: 'Email',
+    type: "group",
+    key: "email",
+    label: "Email",
     icon: Mail,
     children: [
-      { to: '/outreach/email', label: 'Bulk Email', icon: Mail, channel: 'email' },
-      { to: '/email/templates', label: 'Templates', icon: FileText },
-      { to: '/email/conversations', label: 'Conversations', icon: MessageSquare },
+      {
+        to: "/outreach/email",
+        label: "Bulk Email",
+        icon: Mail,
+        channel: "email",
+      },
+      { to: "/email/templates", label: "Templates", icon: FileText },
+      {
+        to: "/email/conversations",
+        label: "Conversations",
+        icon: MessageSquare,
+      },
     ],
   },
-  { type: 'link', to: '/properties', label: 'Properties', icon: Building2 },
-  { type: 'link', to: '/site-visits', label: 'Site Visits', icon: CalendarCheck },
-  { type: 'link', to: '/follow-ups', label: 'Follow Ups', icon: Clock },
+  { type: "link", to: "/properties", label: "Properties", icon: Building2 },
   {
-    type: 'group',
-    key: 'account',
-    label: 'Settings & Profile',
+    type: "link",
+    to: "/site-visits",
+    label: "Site Visits",
+    icon: CalendarCheck,
+  },
+  { type: "link", to: "/follow-ups", label: "Follow-ups", icon: Clock },
+  {
+    type: "group",
+    key: "account",
+    label: "Settings & Profile",
     icon: SettingsIcon,
     children: [
-      { to: '/profile', label: 'Profile', icon: UserCircle },
-      { to: '/settings', label: 'AI & Business Settings', icon: SettingsIcon },
+      { to: "/profile", label: "Profile", icon: UserCircle },
+      { to: "/settings", label: "AI & Business Settings", icon: SettingsIcon },
     ],
   },
 ];
@@ -83,7 +111,9 @@ function OutreachBadge({ stats }) {
       )}
       <span
         className={`rounded-full px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums ${
-          done ? 'bg-primary/20 text-emerald-100' : 'bg-white/10 text-sidebar-text'
+          done
+            ? "bg-primary/20 text-emerald-100"
+            : "bg-white/10 text-sidebar-text"
         }`}
         title={`${stats.sent} sent, ${stats.pending + stats.paused} pending, ${stats.failed} failed`}
       >
@@ -97,8 +127,14 @@ export default function DashboardLayout() {
   const { data: outreach } = useOutreachSummaryLive();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
-  const [expanded, setExpanded] = useState({ whatsapp: false, email: false, account: false });
+  const [darkMode, setDarkMode] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
+  const [expanded, setExpanded] = useState({
+    whatsapp: false,
+    email: false,
+    account: false,
+  });
   const { user, clearSession } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -107,9 +143,11 @@ export default function DashboardLayout() {
   useEffect(() => {
     const currentGroup = NAV_GROUPS.find(
       (item) =>
-        item.type === 'group' &&
+        item.type === "group" &&
         item.children.some(
-          (child) => location.pathname === child.to || location.pathname.startsWith(`${child.to}/`),
+          (child) =>
+            location.pathname === child.to ||
+            location.pathname.startsWith(`${child.to}/`),
         ),
     );
 
@@ -119,7 +157,7 @@ export default function DashboardLayout() {
   }, [location.pathname]);
 
   const toggleDarkMode = () => {
-    document.documentElement.classList.toggle('dark');
+    document.documentElement.classList.toggle("dark");
     setDarkMode((value) => !value);
   };
 
@@ -128,7 +166,7 @@ export default function DashboardLayout() {
       await authApi.logout();
     } finally {
       clearSession();
-      navigate('/login');
+      navigate("/login");
     }
   };
 
@@ -137,13 +175,13 @@ export default function DashboardLayout() {
   const linkClass = (isActive) =>
     `group flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
       isActive
-        ? 'bg-sidebar-active font-extrabold text-sidebar-active-text shadow-sm'
-        : 'font-semibold text-sidebar-text hover:bg-white/10 hover:text-white'
-    } ${sidebarCollapsed ? 'justify-center' : ''}`;
+        ? "bg-sidebar-active font-extrabold text-sidebar-active-text shadow-sm"
+        : "font-semibold text-sidebar-text hover:bg-white/10 hover:text-white"
+    } ${sidebarCollapsed ? "justify-center" : ""}`;
 
   const renderNav = () =>
     NAV_GROUPS.map((item) => {
-      if (item.type === 'link') {
+      if (item.type === "link") {
         const Icon = item.icon;
         return (
           <NavLink
@@ -156,14 +194,18 @@ export default function DashboardLayout() {
             aria-label={sidebarCollapsed ? item.label : undefined}
           >
             <Icon size={18} className="shrink-0" aria-hidden="true" />
-            {!sidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+            {!sidebarCollapsed && (
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            )}
           </NavLink>
         );
       }
 
       const Icon = item.icon;
       const active = item.children.some(
-        (child) => location.pathname === child.to || location.pathname.startsWith(`${child.to}/`),
+        (child) =>
+          location.pathname === child.to ||
+          location.pathname.startsWith(`${child.to}/`),
       );
       const isOpen = Boolean(expanded[item.key]);
 
@@ -176,7 +218,12 @@ export default function DashboardLayout() {
               setExpanded((previous) =>
                 previous[item.key]
                   ? { ...previous, [item.key]: false }
-                  : { whatsapp: false, email: false, account: false, [item.key]: true },
+                  : {
+                      whatsapp: false,
+                      email: false,
+                      account: false,
+                      [item.key]: true,
+                    },
               );
             }}
             className={linkClass(active)}
@@ -190,7 +237,7 @@ export default function DashboardLayout() {
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 <ChevronDown
                   size={15}
-                  className={`shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
                   aria-hidden="true"
                 />
               </>
@@ -209,14 +256,22 @@ export default function DashboardLayout() {
                     className={({ isActive }) =>
                       `group flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${
                         isActive
-                          ? 'bg-white/15 font-bold text-white'
-                          : 'font-medium text-sidebar-muted hover:bg-white/10 hover:text-white'
+                          ? "bg-white/15 font-bold text-white"
+                          : "font-medium text-sidebar-muted hover:bg-white/10 hover:text-white"
                       }`
                     }
                   >
-                    <ChildIcon size={15} className="shrink-0" aria-hidden="true" />
-                    <span className="min-w-0 flex-1 truncate">{child.label}</span>
-                    {child.channel && <OutreachBadge stats={outreach?.[child.channel]} />}
+                    <ChildIcon
+                      size={15}
+                      className="shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {child.label}
+                    </span>
+                    {child.channel && (
+                      <OutreachBadge stats={outreach?.[child.channel]} />
+                    )}
                   </NavLink>
                 );
               })}
@@ -238,7 +293,7 @@ export default function DashboardLayout() {
       />
       <div
         className={`relative z-10 flex min-h-[88px] items-center ${
-          sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-5'
+          sidebarCollapsed ? "justify-center px-2" : "gap-3 px-5"
         } py-5`}
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-950/30">
@@ -246,7 +301,9 @@ export default function DashboardLayout() {
         </span>
         {!sidebarCollapsed && (
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-extrabold leading-5 text-white">Agarwal Homez</p>
+            <p className="truncate text-[15px] font-extrabold leading-5 text-white">
+              Agarwal Homez
+            </p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-sidebar-muted">
               PROPAI CRM
             </p>
@@ -266,25 +323,29 @@ export default function DashboardLayout() {
           type="button"
           onClick={() => setSidebarCollapsed((value) => !value)}
           className={`hidden min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-sidebar-muted transition hover:bg-white/10 hover:text-white lg:flex ${
-            sidebarCollapsed ? 'justify-center' : ''
+            sidebarCollapsed ? "justify-center" : ""
           }`}
-          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-          {!sidebarCollapsed && 'Collapse sidebar'}
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={17} />
+          ) : (
+            <PanelLeftClose size={17} />
+          )}
+          {!sidebarCollapsed && "Collapse sidebar"}
         </button>
         <button
           type="button"
           onClick={handleLogout}
           className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-sidebar-text transition hover:bg-white/10 hover:text-white ${
-            sidebarCollapsed ? 'justify-center' : ''
+            sidebarCollapsed ? "justify-center" : ""
           }`}
-          title={sidebarCollapsed ? 'Log out' : undefined}
-          aria-label={sidebarCollapsed ? 'Log out' : undefined}
+          title={sidebarCollapsed ? "Log out" : undefined}
+          aria-label={sidebarCollapsed ? "Log out" : undefined}
         >
           <LogOut size={18} className="shrink-0" aria-hidden="true" />
-          {!sidebarCollapsed && 'Log out'}
+          {!sidebarCollapsed && "Log out"}
         </button>
       </div>
     </div>
@@ -294,7 +355,7 @@ export default function DashboardLayout() {
     <div className="flex h-screen overflow-hidden bg-page dark:bg-ink-950">
       <aside
         className={`relative hidden shrink-0 overflow-hidden border-r border-sidebar-divider transition-[width] duration-200 lg:block ${
-          sidebarCollapsed ? 'w-[76px]' : 'w-[264px]'
+          sidebarCollapsed ? "w-[76px]" : "w-[264px]"
         }`}
       >
         {SidebarContent}
@@ -333,41 +394,41 @@ export default function DashboardLayout() {
             >
               <Menu size={22} />
             </button>
-            <div>
+            {/* <div>
               <p className="text-sm font-extrabold text-text dark:text-white">PropAI CRM</p>
               <p className="text-[11px] font-medium text-text-muted dark:text-ink-400">
                 Agarwal Homez · Sales workspace
               </p>
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={toggleDarkMode}
-              aria-label={darkMode ? 'Light mode chalu karein' : 'Dark mode chalu karein'}
-              title={darkMode ? 'Light mode' : 'Dark mode'}
+              aria-label={darkMode ? "Enable Light Mode" : "Enable Dark Mode"}
+              title={darkMode ? "Light mode" : "Dark mode"}
               className="flex h-10 w-10 items-center justify-center rounded-xl text-text-muted transition hover:bg-page dark:text-ink-300 dark:hover:bg-ink-800"
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button
               type="button"
-              onClick={() => navigate('/profile')}
-              title={user?.name || 'Profile'}
+              onClick={() => navigate("/profile")}
+              title={user?.name || "Profile"}
               aria-label="Open profile"
               className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-page dark:hover:bg-ink-800"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-soft text-sm font-extrabold text-primary dark:bg-primary/20 dark:text-emerald-200">
-                {user?.name?.[0]?.toUpperCase() || 'U'}
+                {user?.name?.[0]?.toUpperCase() || "U"}
               </span>
-              <span className="hidden md:block">
+              {/* <span className="hidden md:block">
                 <span className="block max-w-32 truncate text-xs font-bold text-text dark:text-white">
-                  {user?.name || 'Profile'}
+                  {user?.name || "Profile"}
                 </span>
                 <span className="block text-[11px] capitalize text-text-muted dark:text-ink-400">
-                  {user?.role || 'User'}
+                  {user?.role || "User"}
                 </span>
-              </span>
+              </span> */}
             </button>
           </div>
         </header>

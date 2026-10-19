@@ -1,11 +1,23 @@
-import { useEffect, useState, useCallback } from 'react';
-import { UserCircle, Building2, Mail, Phone, KeyRound, Loader2, Save, MessageCircle, ArrowUpRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useEffect, useState, useCallback } from "react";
+import {
+  UserCircle,
+  Building2,
+  Mail,
+  Phone,
+  KeyRound,
+  Loader2,
+  Save,
+  MessageCircle,
+  ArrowUpRight,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
-import { authApi } from '../../api/authApi.js';
-import { settingsApi } from '../../api/settingsApi.js';
-import { useAuthStore } from '../../store/authStore.js';
-import { whatsappApi } from '../../api/whatsappApi.js';
-import { useNavigate } from 'react-router-dom';
+import { authApi } from "../../api/authApi.js";
+import { settingsApi } from "../../api/settingsApi.js";
+import { useAuthStore } from "../../store/authStore.js";
+import { whatsappApi } from "../../api/whatsappApi.js";
+import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
   const { user, setSession, accessToken } = useAuthStore();
@@ -13,12 +25,12 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [resetSending, setResetSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -26,17 +38,22 @@ export default function ProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const [meRes, settingsRes, whatsappRes] = await Promise.all([
-        authApi.me(), settingsApi.get(), whatsappApi.status().catch(() => null),
+        authApi.me(),
+        settingsApi.get(),
+        whatsappApi.status().catch(() => null),
       ]);
-      setEmail(meRes.data.user.email || '');
-      setPhone(meRes.data.user.phone || '');
-      setCompanyName(settingsRes.data.settings.companyName || 'Agarwaal Homes');
+      setEmail(meRes.data.user.email || "");
+      setPhone(meRes.data.user.phone || "");
+      setCompanyName(settingsRes.data.settings.companyName || "Agarwaal Homes");
       setWhatsappStatus(whatsappRes?.data || null);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Profile load nahi ho paayi');
+      setError(
+        err?.response?.data?.message ||
+          "Could not load your profile. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -50,18 +67,21 @@ export default function ProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     try {
       const [profileRes] = await Promise.all([
         authApi.updateProfile({ email, phone }),
         settingsApi.update({ companyName }),
       ]);
       setSession(profileRes.data.user, accessToken);
-      setSuccess('Profile updated');
-      setTimeout(() => setSuccess(''), 2500);
+      setSuccess("Profile updated successfully.");
+      setTimeout(() => setSuccess(""), 2500);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Update fail ho gaya');
+      setError(
+        err?.response?.data?.message ||
+          "Could not update your profile. Please try again.",
+      );
     } finally {
       setSaving(false);
     }
@@ -70,13 +90,16 @@ export default function ProfilePage() {
   const handleForgotPassword = async () => {
     if (!email) return;
     setResetSending(true);
-    setError('');
+    setError("");
     try {
       await authApi.forgotPassword({ email });
       setResetSent(true);
       setTimeout(() => setResetSent(false), 5000);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Reset link bhejne mein dikkat hui');
+      setError(
+        err?.response?.data?.message ||
+          "Could not send the password reset link. Please try again.",
+      );
     } finally {
       setResetSending(false);
     }
@@ -97,7 +120,9 @@ export default function ProfilePage() {
           {user?.name?.[0]?.toUpperCase() || <UserCircle size={22} />}
         </span>
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink-900 dark:text-white">Profile</h1>
+          <h1 className="font-display text-2xl font-bold text-ink-900 dark:text-white">
+            Profile
+          </h1>
           {/* <p className="mt-0.5 text-sm capitalize text-ink-500 dark:text-ink-400">{user?.role}</p> */}
         </div>
       </div>
@@ -122,7 +147,7 @@ export default function ProfilePage() {
             className="input-field"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="Your company / agency name"
+            placeholder="Your company or agency name"
           />
         </div>
 
@@ -151,26 +176,67 @@ export default function ProfilePage() {
           />
         </div>
 
-        <button type="submit" disabled={saving} className="btn-primary flex w-full items-center justify-center gap-2">
-          {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-          {saving ? 'Saving…' : 'Save changes'}
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn-primary flex w-full items-center justify-center gap-2"
+        >
+          {saving ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <Save size={16} />
+          )}
+          {saving ? "Saving…" : "Save changes"}
         </button>
       </form>
 
       <div className="card mt-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"><MessageCircle size={19} /></span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+              <MessageCircle size={19} />
+            </span>
             <div>
-              <h2 className="text-base font-semibold text-ink-900 dark:text-white">WhatsApp Business connection</h2>
-              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Official Meta Cloud API, approved templates aur connection status manage karein.</p>
+              <h2 className="text-base font-semibold text-ink-900 dark:text-white">
+                WhatsApp Business Connection
+              </h2>
+              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+                Manage your official Meta Cloud API, approved templates, and
+                connection status.
+              </p>
               <div className="mt-2 flex items-center gap-2 text-xs">
-                {whatsappStatus?.configured && !whatsappStatus?.disconnected ? <><CheckCircle2 size={14} className="text-green-600" /><span className="font-semibold text-green-700 dark:text-green-300">Configured</span></> : <><AlertCircle size={14} className="text-amber-600" /><span className="font-semibold text-amber-700 dark:text-amber-300">{whatsappStatus?.disconnected ? 'Disconnected' : 'Needs configuration'}</span></>}
-                {whatsappStatus?.phoneNumber && <span className="text-ink-500">· {whatsappStatus.phoneNumber}</span>}
+                {whatsappStatus?.configured && !whatsappStatus?.disconnected ? (
+                  <>
+                    <CheckCircle2 size={14} className="text-green-600" />
+                    <span className="font-semibold text-green-700 dark:text-green-300">
+                      Configured
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={14} className="text-amber-600" />
+                    <span className="font-semibold text-amber-700 dark:text-amber-300">
+                      {whatsappStatus?.disconnected
+                        ? "Disconnected"
+                        : "Configuration required"}
+                    </span>
+                  </>
+                )}
+                {whatsappStatus?.phoneNumber && (
+                  <span className="text-ink-500">
+                    · {whatsappStatus.phoneNumber}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-          <button type="button" onClick={() => navigate('/whatsapp')} className="btn-secondary flex items-center gap-2">Manage connection <ArrowUpRight size={15} /></button>
+          <button
+            type="button"
+            onClick={() => navigate("/whatsapp")}
+            className="btn-secondary flex items-center gap-2"
+          >
+            Manage connection <ArrowUpRight size={15} />
+          </button>
         </div>
       </div>
 
@@ -179,7 +245,7 @@ export default function ProfilePage() {
           <KeyRound size={17} /> Password
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Password badalne ke liye ek reset link aapke email par bhej denge.
+          We will send a password reset link to your email address.
         </p>
         <button
           type="button"
@@ -187,12 +253,17 @@ export default function ProfilePage() {
           disabled={resetSending || !email}
           className="btn-secondary mt-3 flex items-center gap-2"
         >
-          {resetSending ? <Loader2 className="animate-spin" size={16} /> : <KeyRound size={16} />}
-          {resetSending ? 'Sending…' : 'Forgot Password'}
+          {resetSending ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <KeyRound size={16} />
+          )}
+          {resetSending ? "Sending…" : "Forgot Password"}
         </button>
         {resetSent && (
           <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-            Reset link {email} par bhej diya gaya hai (agar account exist karta hai).
+            A reset link has been sent to {email}, if an account exists for this
+            address.
           </p>
         )}
       </div>

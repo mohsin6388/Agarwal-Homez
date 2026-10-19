@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   UploadCloud,
@@ -12,11 +13,9 @@ import {
   Users,
 } from "lucide-react";
 import { leadApi } from "../../api/leadApi.js";
-import { useNavigate } from "react-router-dom";
 
 export default function ImportLeadsModal({ onClose, onImported }) {
   const navigate = useNavigate();
-
   const fileRef = useRef(null);
   const [step, setStep] = useState("upload");
   const [importChannel, setImportChannel] = useState("both");
@@ -45,7 +44,7 @@ export default function ImportLeadsModal({ onClose, onImported }) {
     const lower = file.name.toLowerCase();
     if (!lower.endsWith(".csv") && !lower.endsWith(".xlsx")) {
       setError(
-        "CSV ya Excel Workbook (.xlsx) upload karein. Purani .xls file ko pehle .xlsx mein save karein.",
+        "Please upload a CSV or Excel workbook (.xlsx). Save older .xls files as .xlsx before uploading.",
       );
       return;
     }
@@ -60,7 +59,7 @@ export default function ImportLeadsModal({ onClose, onImported }) {
     } catch (err) {
       setError(
         err?.response?.data?.message ||
-          "File parse nahi ho paayi. Header row aur file format check karein.",
+          "Could not read the file. Please check the header row and file format.",
       );
     } finally {
       setLoading(false);
@@ -99,7 +98,7 @@ export default function ImportLeadsModal({ onClose, onImported }) {
     } catch (err) {
       setError(
         err?.response?.data?.message ||
-          "Data import nahi ho saka. Duplicate rows ya required fields check karein.",
+          "Could not import the data. Please check for duplicate rows and required fields.",
       );
     } finally {
       setLoading(false);
@@ -250,12 +249,12 @@ export default function ImportLeadsModal({ onClose, onImported }) {
                   Required contact rule
                 </h3>
                 <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-                  Name optional hai.{" "}
+                  Name is optional.{" "}
                   {importChannel === "both"
-                    ? "Phone/WhatsApp ya email mein se kam-se-kam ek hona chahiye."
+                    ? "At least one phone/WhatsApp number or email address is required."
                     : importChannel === "whatsapp"
-                      ? "Sirf valid phone/WhatsApp number wali rows import hongi."
-                      : "Sirf valid email wali rows import hongi."}
+                      ? "Only rows with a valid phone/WhatsApp number will be imported."
+                      : "Only rows with a valid email address will be imported."}
                 </p>
               </div>
               <div className="rounded-xl border border-ink-100 p-4 dark:border-ink-800">
@@ -263,16 +262,16 @@ export default function ImportLeadsModal({ onClose, onImported }) {
                   Supported columns
                 </h3>
                 <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-                  Naam, Mobile, Email, Address, Job title. City, Location,
-                  Budget aur Requirements jaise purane columns bhi supported
-                  hain. Header names thode alag hon to bhi common aliases
-                  pehchane jaate hain.
+                  Name, Mobile, Email, Address, and Job title. Older columns
+                  such as City, Location, Budget, and Requirements are also
+                  supported. Common column aliases are recognized even when
+                  header names differ slightly.
                 </p>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-ink-400">
-                File size limit: 15 MB. Excel format `.xlsx` hona chahiye.
+                File size limit: 15 MB. Excel files must use the `.xlsx` format.
               </p>
               <button onClick={onClose} className="btn-secondary">
                 Cancel
@@ -314,7 +313,7 @@ export default function ImportLeadsModal({ onClose, onImported }) {
                   <tr>
                     {[
                       "Row",
-                      "Naam",
+                      "Name",
                       "Mobile / WhatsApp",
                       "Email",
                       "Address",

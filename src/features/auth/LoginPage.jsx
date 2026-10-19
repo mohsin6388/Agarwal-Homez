@@ -38,7 +38,7 @@ export default function LoginPage() {
     } catch (err) {
       setError(
         err?.response?.data?.message ||
-          "Login nahi ho paya. Email aur password check karke dobara try karein.",
+          "Unable to log in. Please check your email and password and try again.",
       );
     } finally {
       setLoading(false);
