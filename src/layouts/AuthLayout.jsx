@@ -99,7 +99,7 @@ export default function AuthLayout() {
           </p>
 
           <p className="mt-3 text-sm text-emerald-50/90">
-            Agarwaal Homez
+            Agarwal Homez
             <span className="mx-2 text-amber-400">•</span>
             Client Workspace
           </p>

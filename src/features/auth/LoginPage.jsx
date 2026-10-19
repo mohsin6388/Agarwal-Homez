@@ -53,7 +53,7 @@ export default function LoginPage() {
         </span>
         <span>
           <span className="block font-display text-xl font-bold leading-5 text-emerald-950">
-            Agarwaal
+            Agarwal
           </span>
           <span className="block font-display text-xl font-bold leading-5 text-emerald-950">
             Homez
@@ -61,7 +61,7 @@ export default function LoginPage() {
         </span>
       </div>
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">
-        AGARWAAL HOMEZ
+        AGARWAL HOMEZ
       </p>
       <h1 className="mt-2 font-display text-4xl font-bold tracking-tight text-emerald-950 sm:text-5xl">
         Welcome back
@@ -159,7 +159,7 @@ export default function LoginPage() {
       </form>
       <div className="mt-8 flex items-center justify-center gap-2 text-sm text-ink-500">
         <ShieldCheck size={17} className="text-emerald-900" />
-        <span>Secure access for Agarwaal Homez</span>
+        <span>Secure access for Agarwal Homez</span>
       </div>
     </div>
   );
