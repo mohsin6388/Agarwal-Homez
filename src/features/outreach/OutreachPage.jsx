@@ -112,17 +112,26 @@ export default function OutreachPage({ channel }) {
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: jobsKey,
+    // queryKey: jobsKey,
+    // queryFn: () =>
+    //   outreachApi
+    //     .jobs({
+    //       channel,
+    //       page,
+    //       limit: 50,
+    //       ...(campaignId ? { campaignId } : {}),
+    //       ...(filter ? { status: filter } : {}),
+    //     })
+    //     .then((r) => r.data),
+
     queryFn: () =>
-      outreachApi
-        .jobs({
-          channel,
-          page,
-          limit: 50,
-          ...(campaignId ? { campaignId } : {}),
-          ...(filter ? { status: filter } : {}),
-        })
-        .then((r) => r.data),
+      outreachApi.jobs({
+        channel,
+        page,
+        limit: 50,
+        ...(campaignId ? { campaignId } : {}),
+        ...(filter ? { status: filter } : {}),
+      }),
     placeholderData: (prev) => prev,
     staleTime: 0,
     refetchOnMount: "always",
