@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MessageCircle,
@@ -21,6 +20,7 @@ import {
 import StatusChip, { fmtDateTime } from "./StatusChip.jsx";
 import CampaignCard from "./CampaignCard.jsx";
 import CampaignLauncher from "./CampaignLauncher.jsx";
+import WhatsAppCampaignWizard from "./WhatsAppCampaignWizard.jsx";
 
 const CAMPAIGNS_KEY = ["outreach", "campaigns"];
 
@@ -76,7 +76,6 @@ function StatCard({ icon: Icon, label, value, tone, hint }) {
 export default function OutreachPage({ channel }) {
   const meta = CHANNEL_META[channel];
   const Icon = meta.icon;
-  const navigate = useNavigate();
   const isWhatsApp = channel === "whatsapp";
   const qc = useQueryClient();
 
@@ -112,18 +111,7 @@ export default function OutreachPage({ channel }) {
     isLoading,
     isFetching,
   } = useQuery({
-    // queryKey: jobsKey,
-    // queryFn: () =>
-    //   outreachApi
-    //     .jobs({
-    //       channel,
-    //       page,
-    //       limit: 50,
-    //       ...(campaignId ? { campaignId } : {}),
-    //       ...(filter ? { status: filter } : {}),
-    //     })
-    //     .then((r) => r.data),
-
+    queryKey: jobsKey,
     queryFn: () =>
       outreachApi
         .jobs({
@@ -254,15 +242,10 @@ export default function OutreachPage({ channel }) {
         </div>
         <button
           type="button"
-          onClick={() =>
-            isWhatsApp
-              ? navigate("/outreach/whatsapp/new")
-              : setLaunchOpen(true)
-          }
+          onClick={() => setLaunchOpen(true)}
           className="btn-primary flex items-center gap-2"
         >
-          <Send size={16} />{" "}
-          {isWhatsApp ? "New campaign" : "Create bulk campaign"}
+          <Send size={16} /> Create bulk campaign
         </button>
       </div>
 
@@ -501,6 +484,18 @@ export default function OutreachPage({ channel }) {
           </div>
         )}
       </section>
+      {launchOpen && channel === "whatsapp" && (
+        <WhatsAppCampaignWizard
+          onClose={() => setLaunchOpen(false)}
+          onCampaignStarted={() => {
+            setLaunchOpen(false);
+            setCampaignId("");
+            setFilter("");
+            setPage(1);
+            refreshAll();
+          }}
+        />
+      )}
       {launchOpen && channel === "email" && (
         <CampaignLauncher
           channel={channel}

@@ -1,55 +1,40 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  CalendarClock,
   Check,
   CheckCircle2,
-  FileText,
-  LoaderCircle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  Loader2,
   MessageCircle,
   Plus,
   Search,
   Send,
-  Users,
+  UploadCloud,
+  X,
 } from "lucide-react";
 import { audienceApi } from "../../api/audienceApi.js";
+import { leadApi } from "../../api/leadApi.js";
 import { campaignApi } from "../../api/outreachApi.js";
 import { whatsappApi } from "../../api/whatsappApi.js";
-import { useCampaignWizardStore } from "../../store/campaignWizardStore.js";
-import WhatsAppPhonePreview from "../../components/ui/WhatsAppPhonePreview.jsx";
 
-const STEPS = [
-  { label: "1. Choose recipients", path: "/outreach/whatsapp/new" },
-  { label: "2. Choose message", path: "/outreach/whatsapp/new/message" },
-  { label: "3. Review and send", path: "/outreach/whatsapp/new/review" },
-];
-const money = (value) =>
-  value === null || value === undefined
-    ? null
-    : `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const PAGE_SIZE = 50;
 const count = (value) => Number(value || 0).toLocaleString("en-IN");
+const errorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error?.message ||
+  error?.message ||
+  fallback;
 
-function istDateTimeParts() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(
-    parts.map((part) => [part.type, part.value]),
-  );
-  return {
-    date: `${values.year}-${values.month}-${values.day}`,
-    time: `${values.hour}:${values.minute}`,
-  };
+function getPayload(response) {
+  return response?.data && typeof response.data === "object"
+    ? response.data
+    : response || {};
 }
+
 function templateBody(template) {
   return (
     template?.bodyText ||
@@ -59,6 +44,7 @@ function templateBody(template) {
     ""
   );
 }
+
 function templateHeader(template) {
   return (
     (template?.components || []).find(
@@ -66,223 +52,249 @@ function templateHeader(template) {
     ) || null
   );
 }
-function variableIndexes(template) {
-  const text = templateBody(template);
-  return [
-    ...new Set(
-      [...text.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((match) =>
-        Number(match[1]),
-      ),
-    ),
-  ].sort((a, b) => a - b);
-}
-function statusOf(template) {
-  return String(template?.status || "").toUpperCase();
-}
+
 function getHeaderType(template) {
   const explicit = String(template?.headerType || "").toLowerCase();
   if (explicit && explicit !== "none") return explicit;
   const format = String(templateHeader(template)?.format || "").toLowerCase();
-  if (["image", "document", "text"].includes(format)) return format;
-  return "none";
+  return ["image", "document", "text"].includes(format) ? format : "none";
 }
-function displayVariable(template, index, variables) {
-  const match = (templateBody(template) || "").match(
-    new RegExp(`\\{\\{\\s*${index}\\s*\\}\\}`),
-  );
-  if (!match) return "";
-  const setting = variables[index] || {
+
+function templateVariables(template) {
+  const indexes = [
+    ...new Set(
+      [...templateBody(template).matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map(
+        (match) => Number(match[1]),
+      ),
+    ),
+  ].sort((a, b) => a - b);
+  return indexes.map((index) => ({
+    index,
     source: "name",
-    fallback: "Sir/Ma'am",
     value: "",
-  };
-  if (setting.source === "static")
-    return setting.value || setting.fallback || "Sir/Ma’am";
-  if (setting.source === "city") return "Kanpur";
-  if (setting.source === "budget") return "₹80 lakh – ₹85 lakh";
-  if (setting.source === "phone") return "+91 98765 43210";
-  if (setting.source === "email") return "customer@example.com";
-  return "Ayush";
+    fallback: "Sir/Ma'am",
+  }));
 }
-function personalise(body, variables) {
-  return String(body || "").replace(/\{\{\s*(\d+)\s*\}\}/g, (_match, number) =>
-    displayVariable({ bodyText: body }, Number(number), variables),
-  );
-}
-function getSourceLabel(audience) {
-  if (audience?.sourceType === "upload")
-    return `${audience.sourceFileName || audience.sourceLabel || "Excel upload"} · ${new Date(audience.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`;
-  if (audience?.sourceType === "paste") return "Manually pasted contacts";
-  if (audience?.sourceFileName)
-    return `Existing Excel / CSV · ${audience.sourceFileName}`;
-  if (
-    audience?.sourceLabel &&
-    audience.sourceLabel !== "Upload Data se chunein"
-  )
-    return audience.sourceLabel;
-  return "PropAI Leads";
-}
-function Panel({ title, children, className = "" }) {
-  return (
-    <section className={`card min-w-0 !p-4 sm:!p-5 ${className}`}>
-      <h2 className="text-base font-extrabold text-text dark:text-white">
-        {title}
-      </h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-function FieldLabel({ htmlFor, children }) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="mb-1.5 block text-sm font-bold text-text dark:text-ink-100"
-    >
-      {children}
-    </label>
-  );
-}
-function Stepper({ step }) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {STEPS.map((item, index) => {
-        const number = index + 1;
-        const done = number < step;
-        const active = number === step;
-        return (
-          <div
-            key={item.path}
-            className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-3 ${active ? "border-primary bg-primary-soft dark:bg-primary/10" : done ? "border-primary/30 bg-primary/5" : "border-surface-border bg-white dark:border-ink-800 dark:bg-ink-900"}`}
-          >
-            <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${done || active ? "bg-primary text-white" : "bg-page text-text-muted dark:bg-ink-800 dark:text-ink-400"}`}
-            >
-              {done ? <Check size={15} /> : number}
-            </span>
-            <div className="min-w-0">
-              <p
-                className={`truncate text-xs font-extrabold sm:text-sm ${active ? "text-primary dark:text-emerald-200" : "text-text dark:text-ink-200"}`}
-              >
-                {item.label}
-              </p>
-              {done && (
-                <p className="mt-0.5 text-[10px] text-text-muted dark:text-ink-400">
-                  Complete
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+
+function audienceTotal(audience) {
+  return Number(
+    audience?.contactCount ??
+      audience?.counts?.total ??
+      audience?.counts?.valid ??
+      audience?.leadIds?.length ??
+      0,
   );
 }
 
-export default function WhatsAppCampaignWizard({ step = 1 }) {
+function audienceWhatsAppReady(audience) {
+  return Number(
+    audience?.counts?.whatsappReady ??
+      audience?.whatsappReadyCount ??
+      audience?.counts?.validWhatsApp ??
+      audienceTotal(audience),
+  );
+}
+
+function uploadRowKey(row, index) {
+  return String(row?.rowNumber ?? row?._id ?? row?.id ?? index + 1);
+}
+
+function eligibleUploadRow(row) {
+  const hasPhone = Boolean(String(row?.phone || row?.mobile || "").trim());
+  const status = String(row?.status || "valid").toLowerCase();
+  return (
+    hasPhone &&
+    status === "valid" &&
+    !row?.isDuplicate &&
+    !(row?.errors || []).length
+  );
+}
+
+function campaignRow(row) {
+  return {
+    rowNumber: Number(row?.rowNumber || 0) || undefined,
+    name: String(row?.name || row?.fullName || "").trim(),
+    phone: String(row?.phone || row?.mobile || "").trim(),
+    email: String(row?.email || "").trim(),
+    address: String(row?.address || "").trim(),
+    city: String(row?.city || "").trim(),
+    location: String(row?.location || "").trim(),
+    occupation: String(row?.occupation || row?.jobTitle || "").trim(),
+    jobTitle: String(row?.jobTitle || row?.occupation || "").trim(),
+    budgetMin: row?.budgetMin ?? null,
+    budgetMax: row?.budgetMax ?? null,
+    notes: String(row?.notes || "").trim(),
+    requirements: String(row?.requirements || "").trim(),
+    source: String(row?.source || "whatsapp_campaign_upload"),
+  };
+}
+
+function downloadBlob(response, filename) {
+  const blob =
+    response?.data instanceof Blob ? response.data : new Blob([response?.data]);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+const fieldClass =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+const secondaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45";
+
+export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const wizard = useCampaignWizardStore();
+  const fileInputRef = useRef(null);
+  const lastLeadClickIndex = useRef(null);
+  const [campaignName, setCampaignName] = useState(
+    `WhatsApp campaign ${new Date().toLocaleDateString("en-GB")}`,
+  );
+  const [tab, setTab] = useState("contacts");
+  const [leads, setLeads] = useState([]);
+  const [leadsTotal, setLeadsTotal] = useState(0);
+  const [leadPages, setLeadPages] = useState(1);
+  const [leadPage, setLeadPage] = useState(1);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadFilter, setLeadFilter] = useState("all");
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadsError, setLeadsError] = useState("");
+  const [selectedLeadIds, setSelectedLeadIds] = useState([]);
+  const [rangeStart, setRangeStart] = useState("1");
+  const [rangeEnd, setRangeEnd] = useState("50");
+
   const [audiences, setAudiences] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [whatsappStatus, setWhatsappStatus] = useState(null);
   const [audiencesLoading, setAudiencesLoading] = useState(false);
+  const [audiencesError, setAudiencesError] = useState("");
+  const [selectedAudienceId, setSelectedAudienceId] = useState("");
+
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [uploadRows, setUploadRows] = useState([]);
+  const [selectedUploadKeys, setSelectedUploadKeys] = useState([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [saveUploadAsAudience, setSaveUploadAsAudience] = useState(true);
+
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [testSending, setTestSending] = useState(false);
+  const [metaError, setMetaError] = useState("");
+  const [skipAlreadySent, setSkipAlreadySent] = useState(true);
+  const [optInConfirmed, setOptInConfirmed] = useState(false);
+  const [recipientPreview, setRecipientPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [launching, setLaunching] = useState(false);
-  const [loadingError, setLoadingError] = useState("");
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
-  const [audienceFilter, setAudienceFilter] = useState("all");
-  const [audienceSearch, setAudienceSearch] = useState("");
 
   const selectedAudience = useMemo(
     () =>
       audiences.find(
-        (item) => String(item._id) === String(wizard.audienceId),
+        (audience) =>
+          String(audience._id || audience.id) === selectedAudienceId,
       ) || null,
-    [audiences, wizard.audienceId],
+    [audiences, selectedAudienceId],
   );
-  const selectedTemplate = wizard.selectedTemplate;
-  const indexes = useMemo(
-    () => variableIndexes(selectedTemplate),
-    [selectedTemplate],
+  const selectedTemplate = useMemo(
+    () =>
+      templates.find(
+        (template) =>
+          `${template.name}::${template.language || "en_US"}` ===
+          selectedTemplateKey,
+      ) || null,
+    [templates, selectedTemplateKey],
   );
-  const category = String(
-    selectedTemplate?.category || "MARKETING",
-  ).toUpperCase();
-  const bodyText = templateBody(selectedTemplate);
-  const headerType = getHeaderType(selectedTemplate);
-  const headerImage = selectedTemplate?.imageUrl || wizard.headerImageUrl || "";
-  const headerDocumentName =
-    headerType === "document"
-      ? selectedTemplate?.headerFileName || "Brochure PDF"
-      : "";
-  const buttons =
-    selectedTemplate?.buttons ||
-    (selectedTemplate?.components || []).find(
-      (part) => String(part.type).toUpperCase() === "BUTTONS",
-    )?.buttons ||
-    [];
-  const filteredAudiences = audiences.filter((audience) => {
-    const fromUpload =
-      audience.sourceType === "upload" ||
-      Boolean(audience.sourceFileName) ||
-      /\.(csv|xlsx?)$/i.test(audience.sourceLabel || "");
-    const matchesType =
-      audienceFilter === "all" ||
-      (audienceFilter === "uploads" ? fromUpload : !fromUpload);
-    const haystack =
-      `${audience.name || ""} ${audience.sourceFileName || ""} ${audience.sourceLabel || ""} ${(audience.tags || []).join(" ")}`.toLowerCase();
-    return (
-      matchesType && haystack.includes(audienceSearch.trim().toLowerCase())
-    );
-  });
 
-  const chooseTemplate = useCallback(
-    (template) => {
-      const nextVariables = {};
-      variableIndexes(template).forEach((index) => {
-        nextVariables[index] = wizard.variables[index] || {
-          source: "name",
-          value: "",
-          fallback: "Sir/Ma'am",
-        };
-      });
-      wizard.setTemplate(template, nextVariables);
-    },
-    [wizard],
+  const visibleLeads = useMemo(() => {
+    if (leadFilter === "whatsapp")
+      return leads.filter((lead) => String(lead.phone || "").trim());
+    if (leadFilter === "missing")
+      return leads.filter((lead) => !String(lead.phone || "").trim());
+    return leads;
+  }, [leads, leadFilter]);
+
+  const validUploadRows = useMemo(
+    () => uploadRows.filter(eligibleUploadRow),
+    [uploadRows],
   );
+  const selectedUploadRows = useMemo(
+    () =>
+      uploadRows.filter(
+        (row, index) =>
+          selectedUploadKeys.includes(uploadRowKey(row, index)) &&
+          eligibleUploadRow(row),
+      ),
+    [uploadRows, selectedUploadKeys],
+  );
+
+  const loadLeads = useCallback(async () => {
+    setLeadsLoading(true);
+    setLeadsError("");
+    try {
+      const response = await leadApi.list({
+        page: leadPage,
+        limit: PAGE_SIZE,
+        ...(leadSearch.trim() ? { search: leadSearch.trim() } : {}),
+      });
+      const payload = getPayload(response);
+      const rows = Array.isArray(payload.leads)
+        ? payload.leads
+        : Array.isArray(response?.leads)
+          ? response.leads
+          : [];
+      const pagination = payload.pagination || response?.pagination || {};
+      const total = Number(pagination.total ?? payload.total ?? rows.length);
+      setLeads(rows);
+      setLeadsTotal(total);
+      setLeadPages(
+        Math.max(
+          1,
+          Number(
+            pagination.totalPages ??
+              pagination.pages ??
+              (Math.ceil(total / PAGE_SIZE) || 1),
+          ),
+        ),
+      );
+    } catch (error) {
+      setLeads([]);
+      setLeadsTotal(0);
+      setLeadPages(1);
+      setLeadsError(errorMessage(error, "Contacts sheet load nahi ho saki."));
+    } finally {
+      setLeadsLoading(false);
+    }
+  }, [leadPage, leadSearch]);
 
   useEffect(() => {
-    const preselectedAudienceId = new URLSearchParams(location.search).get(
-      "audienceId",
-    );
-    if (preselectedAudienceId && preselectedAudienceId !== wizard.audienceId)
-      wizard.setField("audienceId", preselectedAudienceId);
-    const preselectedTemplate = location.state?.selectedTemplate;
-    if (
-      preselectedTemplate &&
-      `${preselectedTemplate.name}::${preselectedTemplate.language}` !==
-        `${wizard.selectedTemplate?.name}::${wizard.selectedTemplate?.language}`
-    )
-      chooseTemplate(preselectedTemplate);
-    // Wizard selections intentionally persist across route transitions.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.key]);
+    loadLeads();
+  }, [loadLeads]);
 
   useEffect(() => {
     let alive = true;
     setAudiencesLoading(true);
+    setAudiencesError("");
     audienceApi
       .list()
       .then((response) => {
-        if (alive) setAudiences(response.data?.audiences || []);
+        if (!alive) return;
+        const payload = getPayload(response);
+        const items = Array.isArray(payload.audiences)
+          ? payload.audiences
+          : Array.isArray(response?.audiences)
+            ? response.audiences
+            : [];
+        setAudiences(items);
       })
-      .catch((err) => {
+      .catch((error) => {
         if (alive)
-          setLoadingError(
-            err?.response?.data?.message ||
-              "Could not load saved audiences. Please create an audience first.",
+          setAudiencesError(
+            errorMessage(error, "Saved audience load nahi ho saki."),
           );
       })
       .finally(() => {
@@ -295,13 +307,64 @@ export default function WhatsAppCampaignWizard({ step = 1 }) {
 
   useEffect(() => {
     let alive = true;
+    setTemplatesLoading(true);
+    setMetaError("");
+    whatsappApi
+      .templates()
+      .then((response) => {
+        if (!alive) return;
+        const payload = getPayload(response);
+        const approved = (
+          Array.isArray(payload.templates) ? payload.templates : []
+        ).filter(
+          (template) =>
+            String(template.status || "").toUpperCase() === "APPROVED",
+        );
+        setTemplates(approved);
+        setSelectedTemplateKey((current) =>
+          current &&
+          approved.some(
+            (template) =>
+              `${template.name}::${template.language || "en_US"}` === current,
+          )
+            ? current
+            : "",
+        );
+      })
+      .catch((error) => {
+        if (alive) {
+          setTemplates([]);
+          setSelectedTemplateKey("");
+          setMetaError(
+            errorMessage(error, "Approved Meta templates load nahi ho sake."),
+          );
+        }
+      })
+      .finally(() => {
+        if (alive) setTemplatesLoading(false);
+      });
     whatsappApi
       .status()
       .then((response) => {
-        if (alive) setWhatsappStatus(response.data || null);
+        if (!alive) return;
+        const payload = getPayload(response);
+        const possibleError =
+          payload?.error?.message ||
+          payload?.errorMessage ||
+          (payload?.ok === false ? payload?.message : "");
+        if (possibleError)
+          setMetaError((current) => current || String(possibleError));
       })
-      .catch(() => {
-        if (alive) setWhatsappStatus(null);
+      .catch((error) => {
+        if (alive)
+          setMetaError(
+            (current) =>
+              current ||
+              errorMessage(
+                error,
+                "WhatsApp Meta connection status check nahi ho saka.",
+              ),
+          );
       });
     return () => {
       alive = false;
@@ -309,1047 +372,1165 @@ export default function WhatsAppCampaignWizard({ step = 1 }) {
   }, []);
 
   useEffect(() => {
-    if (step !== 2 && step !== 3) return undefined;
     let alive = true;
-    setTemplatesLoading(true);
-    whatsappApi
-      .templates()
-      .then((response) => {
-        if (!alive) return;
-        const approved = (response.data?.templates || []).filter(
-          (template) => statusOf(template) === "APPROVED",
-        );
-        setTemplates(approved);
-        const stillExists = approved.some(
-          (template) =>
-            `${template.name}::${template.language}` ===
-            `${wizard.selectedTemplate?.name}::${wizard.selectedTemplate?.language}`,
-        );
-        if (!stillExists && approved.length) chooseTemplate(approved[0]);
-      })
-      .catch((err) => {
-        if (alive)
-          setLoadingError(
-            err?.response?.data?.message ||
-              "Could not load approved Meta templates.",
-          );
-      })
-      .finally(() => {
-        if (alive) setTemplatesLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!wizard.audienceId) {
-      wizard.setPreview(null);
+    let payload = null;
+    if (tab === "contacts" && selectedLeadIds.length)
+      payload = { leadIds: selectedLeadIds };
+    if (tab === "audience" && selectedAudienceId)
+      payload = { audienceId: selectedAudienceId };
+    if (!payload) {
+      setRecipientPreview(null);
+      setPreviewLoading(false);
       return undefined;
     }
-    let alive = true;
+    setPreviewLoading(true);
     campaignApi
       .preview({
-        audienceId: wizard.audienceId,
+        ...payload,
         channel: "whatsapp",
-        skipAlreadySent: wizard.skipAlreadySent,
-        category,
+        skipAlreadySent,
+        category: String(
+          selectedTemplate?.category || "MARKETING",
+        ).toUpperCase(),
       })
       .then((response) => {
-        if (alive) wizard.setPreview(response.data || null);
+        if (!alive) return;
+        setRecipientPreview(getPayload(response));
       })
-      .catch((err) => {
-        if (alive) {
-          wizard.setPreview(null);
-          setLoadingError(
-            err?.response?.data?.message ||
-              "Could not load the audience preview.",
-          );
-        }
+      .catch(() => {
+        if (alive) setRecipientPreview(null);
+      })
+      .finally(() => {
+        if (alive) setPreviewLoading(false);
       });
     return () => {
       alive = false;
     };
-  }, [wizard.audienceId, wizard.skipAlreadySent, category]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    tab,
+    selectedLeadIds,
+    selectedAudienceId,
+    skipAlreadySent,
+    selectedTemplate?.category,
+  ]);
 
-  const changeVariable = (index, patch) => wizard.setVariable(index, patch);
-  const validVariables = indexes.every((index) => {
-    const config = wizard.variables[index] || {
-      source: "name",
-      value: "",
-      fallback: "Sir/Ma'am",
-    };
-    return (
-      config.source !== "static" || Boolean(String(config.value || "").trim())
-    );
-  });
-
-  const goNext = () => {
-    setActionError("");
-    if (step === 1) {
-      if (!selectedAudience) {
-        setActionError("Please select a saved audience first.");
-        return;
-      }
-      if (!(wizard.preview?.final > 0)) {
-        setActionError(
-          "The selected audience has no eligible WhatsApp contacts.",
-        );
-        return;
-      }
-      navigate(STEPS[1].path);
-      return;
-    }
-    if (step === 2) {
-      if (!selectedTemplate) {
-        setActionError("Please select an approved Meta template.");
-        return;
-      }
-      if (!validVariables) {
-        setActionError(
-          "Please enter a value for the custom template variable.",
-        );
-        return;
-      }
-      navigate(STEPS[2].path);
-    }
+  const close = () => {
+    if (onClose) onClose();
+    else navigate("/outreach/whatsapp", { replace: true });
   };
 
-  const campaignPayload = () => {
-    const now = istDateTimeParts();
-    const payload = {
-      name: wizard.campaignName.trim(),
-      audienceId: wizard.audienceId,
-      skipAlreadySent: wizard.skipAlreadySent,
-      optInConfirmed: wizard.optInConfirmed,
-      channels: { whatsapp: true, email: false },
-      dailyLimit: 5000,
-      whatsappTemplateName: selectedTemplate?.name,
-      whatsappTemplateLanguage: selectedTemplate?.language || "en_US",
-      whatsappTemplateCategory: category,
-      whatsappTemplateBody: bodyText,
-      whatsappTemplateHeaderType: headerType,
-      whatsappTemplateHeaderImageUrl: headerImage,
-      whatsappTemplateHeaderDocumentUrl:
-        selectedTemplate?.headerDocumentUrl || wizard.headerDocumentUrl || "",
-      whatsappTemplateVariables: indexes.map((index) => ({
-        index,
-        source: wizard.variables[index]?.source || "name",
-        value: wizard.variables[index]?.value || "",
-        fallback: wizard.variables[index]?.fallback || "Sir/Ma'am",
-      })),
-    };
-    if (wizard.scheduleMode === "later")
-      payload.scheduleAt = `${wizard.scheduleDate}T${wizard.scheduleTime}`;
-    else {
-      payload.startDate = now.date;
-      payload.sendTime = now.time;
-    }
-    return payload;
-  };
-
-  const sendTest = async () => {
+  const changeTab = (nextTab) => {
+    setTab(nextTab);
     setActionError("");
     setNotice("");
-    if (!selectedAudience || !selectedTemplate) {
-      setActionError("Please select an audience and an approved template.");
+  };
+
+  const toggleLead = (leadId, checked) => {
+    const id = String(leadId);
+    setSelectedLeadIds((current) =>
+      checked
+        ? [...new Set([...current, id])]
+        : current.filter((item) => item !== id),
+    );
+    setRecipientPreview(null);
+    setActionError("");
+  };
+
+  const handleLeadCheckbox = (lead, index, event) => {
+    const checked = event.target.checked;
+    const id = String(lead._id || lead.id);
+    if (event.nativeEvent?.shiftKey && lastLeadClickIndex.current !== null) {
+      const start = Math.min(lastLeadClickIndex.current, index);
+      const end = Math.max(lastLeadClickIndex.current, index);
+      const rangeIds = visibleLeads
+        .slice(start, end + 1)
+        .filter((item) => String(item.phone || "").trim())
+        .map((item) => String(item._id || item.id));
+      setSelectedLeadIds((current) => {
+        const next = new Set(current);
+        rangeIds.forEach((rangeId) => {
+          if (checked) next.add(rangeId);
+          else next.delete(rangeId);
+        });
+        return [...next];
+      });
+      setRecipientPreview(null);
+      setActionError("");
+    } else {
+      toggleLead(id, checked);
+    }
+    lastLeadClickIndex.current = index;
+  };
+
+  const selectVisibleLeads = () => {
+    const eligibleIds = visibleLeads
+      .filter((lead) => String(lead.phone || "").trim())
+      .map((lead) => String(lead._id || lead.id));
+    const selected = new Set(selectedLeadIds);
+    const allSelected =
+      eligibleIds.length > 0 && eligibleIds.every((id) => selected.has(id));
+    if (allSelected) eligibleIds.forEach((id) => selected.delete(id));
+    else eligibleIds.forEach((id) => selected.add(id));
+    setSelectedLeadIds([...selected]);
+    setRecipientPreview(null);
+    setActionError("");
+  };
+
+  const selectRange = () => {
+    const first = Math.max(1, Number.parseInt(rangeStart, 10) || 1);
+    const last = Math.max(first, Number.parseInt(rangeEnd, 10) || first);
+    const selected = new Set(selectedLeadIds);
+    visibleLeads.forEach((lead, index) => {
+      const serial = (leadPage - 1) * PAGE_SIZE + index + 1;
+      if (serial >= first && serial <= last && String(lead.phone || "").trim())
+        selected.add(String(lead._id || lead.id));
+    });
+    setSelectedLeadIds([...selected]);
+    setRecipientPreview(null);
+    setActionError("");
+  };
+
+  const selectAllUploadRows = () => {
+    const validKeys = uploadRows.filter(eligibleUploadRow).map(uploadRowKey);
+    setSelectedUploadKeys(validKeys);
+  };
+
+  const toggleUploadRow = (row, index, checked) => {
+    const key = uploadRowKey(row, index);
+    setSelectedUploadKeys((current) =>
+      checked
+        ? [...new Set([...current, key])]
+        : current.filter((item) => item !== key),
+    );
+  };
+
+  const handleUpload = async (file) => {
+    if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".csv") && !lower.endsWith(".xlsx")) {
+      setUploadError(
+        "CSV ya Excel workbook (.xlsx) upload karein. Purani .xls file ko pehle .xlsx mein save karein.",
+      );
       return;
     }
-    if (!wizard.testPhone.trim()) {
-      setActionError("Please enter your WhatsApp number.");
-      return;
-    }
-    if (!validVariables) {
-      setActionError("Please enter a value for the custom variable.");
-      return;
-    }
-    setTestSending(true);
+    setUploadFile(file);
+    setUploadError("");
+    setUploadPreview(null);
+    setUploadRows([]);
+    setSelectedUploadKeys([]);
+    setUploadLoading(true);
     try {
-      const result = await campaignApi.testSend({
-        phone: wizard.testPhone.trim(),
-        audienceId: wizard.audienceId,
+      const response = await audienceApi.previewFile(file, true);
+      const payload = getPayload(response);
+      const rows = Array.isArray(payload.rows) ? payload.rows : [];
+      setUploadPreview(payload);
+      setUploadRows(rows);
+      setSaveUploadAsAudience(true);
+    } catch (error) {
+      setUploadError(
+        errorMessage(
+          error,
+          "Sheet read nahi ho saki. Header row aur file format check karein.",
+        ),
+      );
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const downloadSampleSheet = async () => {
+    try {
+      const response = await leadApi.sampleSheet();
+      downloadBlob(response, "propai-contacts-sample.xlsx");
+    } catch (error) {
+      setUploadError(
+        errorMessage(error, "Sample sheet download nahi ho saki."),
+      );
+    }
+  };
+
+  const activeSelectedCount = useMemo(() => {
+    if (tab === "contacts") return selectedLeadIds.length;
+    if (tab === "audience")
+      return selectedAudience ? audienceTotal(selectedAudience) : 0;
+    return selectedUploadRows.length;
+  }, [
+    tab,
+    selectedLeadIds.length,
+    selectedAudience,
+    selectedUploadRows.length,
+  ]);
+
+  const effectiveCount = useMemo(() => {
+    if (tab === "contacts")
+      return Number(recipientPreview?.final ?? selectedLeadIds.length);
+    if (tab === "audience")
+      return Number(
+        recipientPreview?.final ??
+          (selectedAudience ? audienceWhatsAppReady(selectedAudience) : 0),
+      );
+    return selectedUploadRows.length;
+  }, [
+    tab,
+    recipientPreview,
+    selectedLeadIds.length,
+    selectedAudience,
+    selectedUploadRows.length,
+  ]);
+
+  const launchCampaign = async () => {
+    setActionError("");
+    setNotice("");
+    if (!campaignName.trim()) {
+      setActionError("Campaign name zaroori hai.");
+      return;
+    }
+    if (!selectedTemplate) {
+      setActionError("Approved Meta template select karein.");
+      return;
+    }
+    if (activeSelectedCount < 1 || effectiveCount < 1) {
+      setActionError(
+        "WhatsApp number wale kam se kam ek contact select karein.",
+      );
+      return;
+    }
+    if (!optInConfirmed) {
+      setActionError(
+        "Campaign se pehle confirm karein ki selected contacts ne WhatsApp messages ke liye opt-in diya hai.",
+      );
+      return;
+    }
+
+    setLaunching(true);
+    try {
+      let recipients = {};
+      if (tab === "contacts") {
+        recipients = { leadIds: selectedLeadIds };
+      } else if (tab === "audience") {
+        recipients = { audienceId: selectedAudienceId };
+      } else {
+        if (saveUploadAsAudience) {
+          const audienceName = `${campaignName.trim()} audience`.slice(0, 120);
+          const previewSourceType = String(
+            uploadPreview?.sourceType || "upload",
+          ).toLowerCase();
+          const safeSourceType = ["upload", "paste", "leads"].includes(
+            previewSourceType,
+          )
+            ? previewSourceType
+            : "upload";
+          const audienceResponse = await audienceApi.create({
+            name: audienceName,
+            tags: [],
+            sourceType: safeSourceType,
+            sourceLabel:
+              uploadPreview?.sourceLabel ||
+              uploadFile?.name ||
+              "WhatsApp campaign upload",
+            sourceFileName:
+              uploadPreview?.sourceFileName || uploadFile?.name || "",
+            addToCrm: true,
+            addCountryCode: true,
+            rows: selectedUploadRows.map((row) => ({
+              ...campaignRow(row),
+              rowNumber: row.rowNumber,
+              status: "valid",
+              isDuplicate: false,
+              duplicateReason: "",
+              errors: [],
+            })),
+          });
+          const createdAudience = getPayload(audienceResponse).audience;
+          const createdAudienceId = createdAudience?._id || createdAudience?.id;
+          if (!createdAudienceId)
+            throw new Error(
+              "Audience save response mein ID nahi mili. Audience page check karein.",
+            );
+          recipients = { audienceId: String(createdAudienceId) };
+        } else {
+          recipients = { rows: selectedUploadRows.map(campaignRow) };
+        }
+      }
+
+      const body = templateBody(selectedTemplate);
+      const headerType = getHeaderType(selectedTemplate);
+      const category = String(
+        selectedTemplate.category || "MARKETING",
+      ).toUpperCase();
+      const variables = templateVariables(selectedTemplate);
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const now = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+
+      const response = await campaignApi.launch({
+        name: campaignName.trim(),
+        ...recipients,
+        skipAlreadySent,
+        optInConfirmed,
+        channels: { whatsapp: true, email: false },
+        dailyLimit: 5000,
+        startDate: today,
+        sendTime: now,
         whatsappTemplateName: selectedTemplate.name,
         whatsappTemplateLanguage: selectedTemplate.language || "en_US",
         whatsappTemplateCategory: category,
-        whatsappTemplateBody: bodyText,
+        whatsappTemplateBody: body,
         whatsappTemplateHeaderType: headerType,
-        whatsappTemplateHeaderImageUrl: headerImage,
+        whatsappTemplateHeaderImageUrl: selectedTemplate.imageUrl || "",
         whatsappTemplateHeaderDocumentUrl:
-          selectedTemplate?.headerDocumentUrl || wizard.headerDocumentUrl || "",
-        whatsappTemplateVariables: indexes.map((index) => ({
-          index,
-          source: wizard.variables[index]?.source || "name",
-          value: wizard.variables[index]?.value || "",
-          fallback: wizard.variables[index]?.fallback || "Sir/Ma'am",
-        })),
+          selectedTemplate.headerDocumentUrl || "",
+        whatsappTemplateVariables: variables,
       });
-      setNotice(result.message || "Test template sent successfully.");
-    } catch (err) {
-      setActionError(
-        err?.response?.data?.message ||
-          "Could not send the WhatsApp test message. Check the number and Meta settings.",
-      );
-    } finally {
-      setTestSending(false);
-    }
-  };
-
-  const launch = async () => {
-    setActionError("");
-    setNotice("");
-    if (!wizard.campaignName.trim()) {
-      setActionError("Campaign name is required.");
-      return;
-    }
-    if (!wizard.optInConfirmed) {
-      setActionError(
-        "Please confirm recipient opt-in before starting the campaign.",
-      );
-      return;
-    }
-    if (wizard.scheduleMode === "later") {
-      if (!wizard.scheduleDate || !wizard.scheduleTime) {
-        setActionError("Please select a scheduled date and time.");
-        return;
-      }
-      const planned = new Date(
-        `${wizard.scheduleDate}T${wizard.scheduleTime}:00+05:30`,
-      );
-      if (
-        !Number.isFinite(planned.getTime()) ||
-        planned.getTime() <= Date.now()
-      ) {
-        setActionError("The scheduled time must be in the future.");
-        return;
-      }
-    }
-    setLaunching(true);
-    wizard.setField("launching", true);
-    try {
-      const result = await campaignApi.launch(campaignPayload());
-      const queued = result.data?.queued?.whatsapp || 0;
-      setNotice(
-        `${count(queued)} WhatsApp messages added to the queue. The existing sending worker will process the queue.`,
-      );
+      const result = getPayload(response);
+      const queued = Number(result?.queued?.whatsapp ?? 0);
+      const successMessage =
+        response?.message ||
+        `${count(queued)} WhatsApp messages campaign queue mein add ho gaye.`;
+      setNotice(successMessage);
+      onCampaignStarted?.(successMessage);
       window.setTimeout(() => {
-        wizard.reset();
-        navigate("/outreach/whatsapp", {
-          replace: true,
-          state: {
-            notice: result.message || "Campaign added to the queue.",
-          },
-        });
-      }, 1000);
-    } catch (err) {
+        if (onClose) onClose();
+        else
+          navigate("/outreach/whatsapp", {
+            replace: true,
+            state: { notice: successMessage },
+          });
+      }, 800);
+    } catch (error) {
       setActionError(
-        err?.response?.data?.message ||
-          "Could not launch the campaign. Check the audience, template, and opt-in confirmation.",
+        errorMessage(
+          error,
+          "Campaign start nahi ho saki. Selected contacts, template aur Meta settings check karein.",
+        ),
       );
     } finally {
       setLaunching(false);
-      wizard.setField("launching", false);
     }
   };
 
-  const currentTime = istDateTimeParts();
-  const chosenCount =
-    wizard.preview?.final ??
-    selectedAudience?.contactCount ??
-    selectedAudience?.counts?.valid ??
-    0;
-  const categoryLabel = category === "UTILITY" ? "Utility" : "Marketing";
+  const hasAudienceCount = selectedAudience
+    ? audienceTotal(selectedAudience)
+    : 0;
+  const footerCount =
+    tab === "audience" ? hasAudienceCount : activeSelectedCount;
+  const templateBodyPreview = templateBody(selectedTemplate);
+  const filteredAudienceList = audiences;
+  const startDisabled =
+    launching ||
+    !campaignName.trim() ||
+    !selectedTemplate ||
+    activeSelectedCount < 1 ||
+    effectiveCount < 1 ||
+    !optInConfirmed;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-5 pb-10">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            to="/outreach/whatsapp"
-            className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-primary dark:text-ink-400"
-          >
-            <ArrowLeft size={14} /> WhatsApp campaigns
-          </Link>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight text-text dark:text-white">
-            Send bulk messages
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-text-muted dark:text-ink-400">
-            Select a saved audience, preview the Meta-approved message, and
-            review the campaign before launching.
-          </p>
-        </div>
-        <div className="w-full max-w-sm">
-          <FieldLabel htmlFor="campaign-name">Campaign name</FieldLabel>
-          <input
-            id="campaign-name"
-            value={wizard.campaignName}
-            onChange={(event) =>
-              wizard.setField("campaignName", event.target.value)
-            }
-            maxLength={120}
-            placeholder="Diwali offer – Kanpur leads"
-            className="input-field"
-          />
-        </div>
-      </div>
-      <Stepper step={step} />
-      {loadingError && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-xl bg-chip-error-bg px-4 py-3 text-sm text-chip-error-text"
-        >
-          <AlertCircle size={17} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{loadingError}</span>
-          <button
-            type="button"
-            onClick={() => setLoadingError("")}
-            aria-label="Dismiss error"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {actionError && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-xl bg-chip-error-bg px-4 py-3 text-sm text-chip-error-text"
-        >
-          <AlertCircle size={17} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{actionError}</span>
-          <button
-            type="button"
-            onClick={() => setActionError("")}
-            aria-label="Dismiss error"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {notice && (
-        <div
-          role="status"
-          className="flex items-start gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm font-semibold text-primary"
-        >
-          <CheckCircle2 size={17} className="mt-0.5 shrink-0" />
-          <span>{notice}</span>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_350px]">
-          <div className="space-y-5">
-            <Panel title="1. Choose recipients">
-              <p className="mb-4 text-sm text-text-muted dark:text-ink-400">
-                Select a saved audience. Need a new list? Create one in about a
-                minute.
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-2 backdrop-blur-[1px] sm:p-5"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !launching) close();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="whatsapp-campaign-title"
+        className="flex max-h-[calc(100dvh-16px)] w-full max-w-[1010px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-40px)]"
+      >
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <MessageCircle size={20} />
+            </span>
+            <div className="min-w-0">
+              <h2
+                id="whatsapp-campaign-title"
+                className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl"
+              >
+                Create WhatsApp campaign
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+                Audience chunein, template ka preview dekhein, aur bhejein.
               </p>
-              <Link
-                to="/audiences/new"
-                className="btn-secondary mb-4 inline-flex"
-              >
-                <Plus size={16} /> Create a new audience
-              </Link>
-              <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px]">
-                <label className="relative block">
-                  <span className="sr-only">Search audiences</span>
-                  <Search
-                    size={17}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                  />
-                  <input
-                    value={audienceSearch}
-                    onChange={(event) => setAudienceSearch(event.target.value)}
-                    className="input-field pl-9"
-                    placeholder="Search by audience name or Excel filename"
-                  />
-                </label>
-                <label className="block">
-                  <span className="sr-only">Audience type</span>
-                  <select
-                    value={audienceFilter}
-                    onChange={(event) => setAudienceFilter(event.target.value)}
-                    className="input-field"
-                  >
-                    <option value="all">All audiences</option>
-                    <option value="uploads">Excel / CSV uploads</option>
-                    <option value="leads">PropAI Leads / pasted lists</option>
-                  </select>
-                </label>
-              </div>
-              {audiencesLoading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-text-muted">
-                  <LoaderCircle size={18} className="animate-spin" /> Loading
-                  audiences…
-                </div>
-              ) : filteredAudiences.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-input-border px-4 py-10 text-center">
-                  <Users className="mx-auto text-primary" size={28} />
-                  <p className="mt-3 font-bold text-text dark:text-white">
-                    No saved audiences found
-                  </p>
-                  <p className="mt-1 text-sm text-text-muted dark:text-ink-400">
-                    Create a new audience, then select it here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredAudiences.map((audience) => {
-                    const active =
-                      String(audience._id) === String(wizard.audienceId);
-                    const total = Number(
-                      audience.contactCount ?? audience.counts?.valid ?? 0,
-                    );
-                    const sent = Number(audience.skipCount?.whatsapp || 0);
-                    return (
-                      <button
-                        type="button"
-                        key={audience._id}
-                        onClick={() => {
-                          wizard.setField("audienceId", audience._id);
-                          wizard.setPreview(null);
-                          setLoadingError("");
-                        }}
-                        className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition ${active ? "border-primary bg-primary-soft ring-1 ring-primary/20 dark:bg-primary/10" : "border-surface-border bg-white hover:border-primary/50 dark:border-ink-700 dark:bg-ink-900"}`}
-                      >
-                        <span
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-primary bg-primary text-white" : "border-input-border text-transparent"}`}
-                        >
-                          {active && <Check size={12} />}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-extrabold text-text dark:text-white">
-                            {audience.name}
-                          </p>
-                          <p className="mt-1 truncate text-xs text-text-muted dark:text-ink-400">
-                            {getSourceLabel(audience)}
-                            {audience.tags?.length
-                              ? ` · Tag: ${audience.tags.join(", ")}`
-                              : ""}
-                          </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                            <span className="font-semibold text-text dark:text-ink-200">
-                              {count(total)} contacts
-                            </span>
-                            <span className="text-text-muted dark:text-ink-400">
-                              Saved{" "}
-                              {audience.createdAt
-                                ? new Date(audience.createdAt).toLocaleString(
-                                    "en-IN",
-                                    {
-                                      day: "2-digit",
-                                      month: "short",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    },
-                                  )
-                                : "date unknown"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="hidden text-right sm:block">
-                          <p className="text-xs text-text-muted dark:text-ink-400">
-                            WhatsApp messages sent
-                          </p>
-                          <p className="font-extrabold tabular-nums text-text dark:text-white">
-                            {count(sent)}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="mt-5 rounded-xl bg-page p-3.5 dark:bg-ink-800">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={wizard.skipAlreadySent}
-                    onChange={(event) => {
-                      wizard.setField("skipAlreadySent", event.target.checked);
-                      wizard.setPreview(null);
-                    }}
-                    className="mt-1 h-4 w-4 accent-emerald-700"
-                  />
-                  <span>
-                    <span className="block text-sm font-extrabold text-text dark:text-white">
-                      Skip contacts who have already received a message
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted dark:text-ink-400">
-                      Avoid sending another message to the same contact.
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </Panel>
-          </div>
-          <aside className="h-fit space-y-4 xl:sticky xl:top-5">
-            <Panel title="Your selection">
-              {selectedAudience ? (
-                <>
-                  <p className="text-sm font-extrabold text-text dark:text-white">
-                    {selectedAudience.name}
-                  </p>
-                  <div className="mt-4 space-y-3 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-text-muted dark:text-ink-400">
-                        Total contacts
-                      </span>
-                      <b className="tabular-nums">
-                        {count(
-                          wizard.preview?.total ??
-                            selectedAudience.contactCount,
-                        )}
-                      </b>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-text-muted dark:text-ink-400">
-                        Previously sent (skipped)
-                      </span>
-                      <b className="tabular-nums">
-                        {count(
-                          wizard.preview?.skip ??
-                            (wizard.skipAlreadySent
-                              ? selectedAudience.skipCount?.whatsapp
-                              : 0),
-                        )}
-                      </b>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-text-muted dark:text-ink-400">
-                        Missing phone number
-                      </span>
-                      <b className="tabular-nums">
-                        {count(wizard.preview?.missingContact || 0)}
-                      </b>
-                    </div>
-                    <div className="rounded-xl bg-primary-soft p-4">
-                      <p className="text-xs font-extrabold text-primary">
-                        Messages to be sent
-                      </p>
-                      <p className="mt-1 text-3xl font-extrabold tabular-nums text-primary">
-                        {count(chosenCount)}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-text-muted dark:text-ink-400">
-                  Select an audience to see the contact count.
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!selectedAudience || !(wizard.preview?.final > 0)}
-                className="btn-primary mt-5 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next: Choose message <ArrowRight size={16} />
-              </button>
-              <div className="mt-4 rounded-lg bg-primary-soft/70 p-3 text-xs leading-5 text-primary">
-                <b>Nothing will be sent yet.</b> Messages will be sent only
-                after you click “Start campaign” in Step 3.
-              </div>
-            </Panel>
-          </aside>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-5">
-            <Panel title="2. Choose message">
-              <p className="mb-4 text-sm text-text-muted dark:text-ink-400">
-                Only Meta-approved templates appear here. Submit new templates
-                for approval before using them.
-              </p>
-              <div className="mb-4">
-                <Link
-                  to="/whatsapp/templates/new"
-                  className="inline-flex items-center gap-1.5 text-sm font-extrabold text-primary hover:underline"
-                >
-                  + Create a template and submit it for approval{" "}
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-              {templatesLoading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-muted">
-                  <LoaderCircle size={18} className="animate-spin" /> Loading
-                  approved templates…
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-input-border p-8 text-center">
-                  <FileText size={28} className="mx-auto text-primary" />
-                  <p className="mt-3 font-extrabold text-text dark:text-white">
-                    No approved templates found
-                  </p>
-                  <p className="mt-1 text-sm text-text-muted dark:text-ink-400">
-                    You can select a template here after Meta approves it.
-                  </p>
-                  <Link
-                    to="/whatsapp/templates/new"
-                    className="btn-primary mt-4 inline-flex"
-                  >
-                    New template <ArrowRight size={15} />
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {templates.map((template) => {
-                    const active =
-                      `${template.name}::${template.language}` ===
-                      `${selectedTemplate?.name}::${selectedTemplate?.language}`;
-                    const header = getHeaderType(template);
-                    return (
-                      <button
-                        type="button"
-                        key={`${template.name}::${template.language}`}
-                        onClick={() => chooseTemplate(template)}
-                        className={`w-full rounded-2xl border p-4 text-left transition ${active ? "border-primary bg-primary-soft ring-1 ring-primary/20 dark:bg-primary/10" : "border-surface-border bg-white hover:border-primary/50 dark:border-ink-700 dark:bg-ink-900"}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-primary bg-primary text-white" : "border-input-border text-transparent"}`}
-                          >
-                            {active && <Check size={12} />}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-primary-soft px-2 py-1 text-[10px] font-extrabold tracking-wide text-primary">
-                                APPROVED
-                              </span>
-                              <span className="rounded-full bg-chip-neutral-bg px-2 py-1 text-[10px] font-extrabold text-chip-neutral-text">
-                                {String(
-                                  template.category || "MARKETING",
-                                ).toUpperCase()}
-                              </span>
-                            </div>
-                            <p className="mt-2 break-words font-extrabold text-text dark:text-white">
-                              {template.name}
-                            </p>
-                            <p className="mt-1 text-xs text-text-muted dark:text-ink-400">
-                              {template.name} · {template.language || "en_US"}
-                            </p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-5 text-text-muted dark:text-ink-300">
-                              {templateBody(template) ||
-                                "Message preview unavailable"}
-                            </p>
-                            {header !== "none" && (
-                              <p className="mt-2 text-xs font-semibold text-text-muted dark:text-ink-400">
-                                Header:{" "}
-                                {header === "document"
-                                  ? "PDF / Brochure"
-                                  : header}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </Panel>
-            {selectedTemplate && (
-              <Panel title="Personalisation (optional)">
-                <p className="mb-3 text-sm text-text-muted dark:text-ink-400">
-                  By default, the template's name variable is filled with the
-                  customer's name. Change other settings only when needed.
-                </p>
-                <details className="rounded-xl border border-surface-border p-3 dark:border-ink-700">
-                  <summary className="cursor-pointer text-sm font-extrabold text-primary">
-                    Edit name, city, budget, or fallback
-                  </summary>
-                  <div className="mt-4 space-y-4">
-                    {indexes.length === 0 ? (
-                      <p className="rounded-lg bg-page p-3 text-sm text-text-muted dark:bg-ink-800 dark:text-ink-400">
-                        This template has no variables. The message will be sent
-                        exactly as approved.
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {indexes.map((index) => {
-                          const config = wizard.variables[index] || {
-                            source: "name",
-                            value: "",
-                            fallback: "Sir/Ma'am",
-                          };
-                          return (
-                            <div
-                              key={index}
-                              className="rounded-xl border border-surface-border p-4 dark:border-ink-700"
-                            >
-                              <p className="mb-3 text-sm font-extrabold text-text dark:text-white">
-                                Variable {"{{"}
-                                {index}
-                                {"}}"}
-                              </p>
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                <div>
-                                  <FieldLabel
-                                    htmlFor={`variable-source-${index}`}
-                                  >
-                                    What should go here?
-                                  </FieldLabel>
-                                  <select
-                                    id={`variable-source-${index}`}
-                                    className="input-field"
-                                    value={config.source}
-                                    onChange={(event) =>
-                                      changeVariable(index, {
-                                        source: event.target.value,
-                                      })
-                                    }
-                                  >
-                                    <option value="name">Contact name</option>
-                                    <option value="city">City</option>
-                                    <option value="budget">Budget</option>
-                                    <option value="static">Custom text</option>
-                                  </select>
-                                </div>
-                                {config.source === "static" && (
-                                  <div>
-                                    <FieldLabel
-                                      htmlFor={`variable-value-${index}`}
-                                    >
-                                      Custom text
-                                    </FieldLabel>
-                                    <input
-                                      id={`variable-value-${index}`}
-                                      className="input-field"
-                                      value={config.value || ""}
-                                      onChange={(event) =>
-                                        changeVariable(index, {
-                                          value: event.target.value,
-                                        })
-                                      }
-                                      placeholder="Special property offer"
-                                      maxLength={1000}
-                                    />
-                                  </div>
-                                )}
-                                <div>
-                                  <FieldLabel
-                                    htmlFor={`variable-fallback-${index}`}
-                                  >
-                                    Fallback if name is unavailable
-                                  </FieldLabel>
-                                  <input
-                                    id={`variable-fallback-${index}`}
-                                    className="input-field"
-                                    value={config.fallback || ""}
-                                    onChange={(event) =>
-                                      changeVariable(index, {
-                                        fallback: event.target.value,
-                                      })
-                                    }
-                                    placeholder="Sir/Ma'am"
-                                    maxLength={200}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </details>
-              </Panel>
-            )}
-            <div className="flex flex-wrap justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(STEPS[0].path)}
-                className="btn-secondary"
-              >
-                <ArrowLeft size={16} /> Back
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={
-                  !selectedTemplate || templatesLoading || !validVariables
-                }
-                className="btn-primary disabled:opacity-50"
-              >
-                Next: Review <ArrowRight size={16} />
-              </button>
             </div>
           </div>
-          <aside className="h-fit rounded-2xl border border-surface-border bg-white p-4 dark:border-ink-800 dark:bg-ink-900 xl:sticky xl:top-5">
-            <h2 className="text-base font-extrabold text-text dark:text-white">
-              Customer preview
-            </h2>
-            <p className="mt-1 text-xs text-text-muted dark:text-ink-400">
-              WhatsApp phone preview
-            </p>
-            <div className="mt-4">
-              <WhatsAppPhonePreview
-                customerName="Ayush"
-                title={selectedTemplate?.headerText || ""}
-                greeting="Hello {{1}},"
-                body={
-                  selectedTemplate
-                    ? personalise(bodyText, wizard.variables)
-                    : "Select an approved template."
-                }
-                footer={selectedTemplate?.footerText || ""}
-                buttons={buttons}
-                headerImage={headerType === "image" ? headerImage : ""}
-                headerDocumentName={headerDocumentName}
-              />
-            </div>
-            <p className="mt-3 text-center text-xs text-text-muted dark:text-ink-400">
-              Preview name: <b className="text-text dark:text-white">Ayush</b>{" "}
-              (list ka pehla contact)
-            </p>
-          </aside>
-        </div>
-      )}
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={close}
+            disabled={launching}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+          >
+            <X size={19} />
+          </button>
+        </header>
 
-      {step === 3 && (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-5">
-            <Panel title="3. Review and send">
-              <div className="space-y-3">
-                {[
-                  {
-                    label: "Audience",
-                    value: selectedAudience?.name || "No audience selected",
-                    to: STEPS[0].path,
-                  },
-                  {
-                    label: "Message",
-                    value: selectedTemplate
-                      ? `${selectedTemplate.name} · personalized`
-                      : "No template selected",
-                    to: STEPS[1].path,
-                  },
-                  {
-                    label: "Sending from",
-                    value: `${whatsappStatus?.verifiedName || "Agarwal Homez"}${whatsappStatus?.phoneNumber ? ` · ${whatsappStatus.phoneNumber}` : " · WhatsApp Business account"}`,
-                    to: null,
-                  },
-                ].map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex flex-wrap items-center gap-3 rounded-xl border border-surface-border p-3.5 dark:border-ink-700"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-text-muted dark:text-ink-400">
-                        {row.label}
-                      </p>
-                      <p className="mt-1 break-words text-sm font-extrabold text-text dark:text-white">
-                        {row.value}
-                      </p>
-                    </div>
-                    {row.to && (
-                      <button
-                        type="button"
-                        onClick={() => navigate(row.to)}
-                        className="text-sm font-extrabold text-primary hover:underline"
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Panel>
-            <Panel title="When should it be sent?">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => wizard.setField("scheduleMode", "now")}
-                  className={`rounded-xl border p-4 text-left ${wizard.scheduleMode === "now" ? "border-primary bg-primary-soft" : "border-surface-border dark:border-ink-700"}`}
-                >
-                  <span className="flex items-center gap-2 font-extrabold text-text dark:text-white">
-                    <Send size={16} className="text-primary" /> Send now
-                  </span>
-                  <span className="mt-1 block text-sm text-text-muted dark:text-ink-400">
-                    Starts immediately; messages are sent gradually.
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => wizard.setField("scheduleMode", "later")}
-                  className={`rounded-xl border p-4 text-left ${wizard.scheduleMode === "later" ? "border-primary bg-primary-soft" : "border-surface-border dark:border-ink-700"}`}
-                >
-                  <span className="flex items-center gap-2 font-extrabold text-text dark:text-white">
-                    <CalendarClock size={16} className="text-primary" />{" "}
-                    Schedule for later
-                  </span>
-                  <span className="mt-1 block text-sm text-text-muted dark:text-ink-400">
-                    Choose a date and time (IST)
-                  </span>
-                </button>
-              </div>
-              {wizard.scheduleMode === "later" && (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-4">
+          {metaError && (
+            <div
+              role="alert"
+              className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
+            >
+              <AlertCircle size={17} className="mt-0.5 shrink-0" />
+              <span className="min-w-0">{metaError}</span>
+            </div>
+          )}
+          {(actionError || uploadError) && (
+            <div
+              role="alert"
+              className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
+            >
+              <AlertCircle size={17} className="mt-0.5 shrink-0" />
+              <span className="min-w-0">{actionError || uploadError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError("");
+                  setUploadError("");
+                }}
+                aria-label="Dismiss error"
+                className="ml-auto shrink-0"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {notice && (
+            <div
+              role="status"
+              className="mb-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700"
+            >
+              <CheckCircle2 size={17} className="mt-0.5 shrink-0" />
+              <span>{notice}</span>
+            </div>
+          )}
+
+          <label
+            className="mb-3 block text-xs font-bold text-slate-700"
+            htmlFor="whatsapp-campaign-name"
+          >
+            Campaign name
+            <input
+              id="whatsapp-campaign-name"
+              value={campaignName}
+              onChange={(event) => setCampaignName(event.target.value)}
+              maxLength={120}
+              className={`${fieldClass} mt-1.5`}
+              placeholder="WhatsApp campaign name"
+            />
+          </label>
+
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.48fr)_minmax(285px,0.98fr)] lg:gap-4">
+            <div className="min-w-0">
+              <section className="rounded-xl border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <FieldLabel htmlFor="schedule-date">Date (IST)</FieldLabel>
-                    <input
-                      id="schedule-date"
-                      type="date"
-                      value={wizard.scheduleDate}
-                      min={currentTime.date}
-                      onChange={(event) =>
-                        wizard.setField("scheduleDate", event.target.value)
-                      }
-                      className="input-field"
-                    />
+                    <h3 className="text-sm font-extrabold text-slate-800">
+                      Step 1 · Kisko bhejna hai?
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {count(footerCount)} contacts selected
+                    </p>
                   </div>
-                  <div>
-                    <FieldLabel htmlFor="schedule-time">Time (IST)</FieldLabel>
-                    <input
-                      id="schedule-time"
-                      type="time"
-                      value={wizard.scheduleTime}
-                      onChange={(event) =>
-                        wizard.setField("scheduleTime", event.target.value)
-                      }
-                      className="input-field"
-                    />
-                  </div>
-                  <p className="text-xs text-text-muted dark:text-ink-400 sm:col-span-2">
-                    The scheduled time will be interpreted in the Asia/Kolkata
-                    time zone.
-                  </p>
-                </div>
-              )}
-            </Panel>
-            <details className="card !p-4 sm:!p-5">
-              <summary className="cursor-pointer text-base font-extrabold text-text dark:text-white">
-                Optional: Send a test message first
-              </summary>
-              <div className="mt-3">
-                <p className="mb-3 text-sm text-text-muted dark:text-ink-400">
-                  The selected Meta template will be tested using sample
-                  variables for the first contact in the audience.
-                </p>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="flex-1">
-                    <FieldLabel htmlFor="test-phone">
-                      Your WhatsApp number
-                    </FieldLabel>
-                    <input
-                      id="test-phone"
-                      type="tel"
-                      value={wizard.testPhone}
-                      onChange={(event) =>
-                        wizard.setField("testPhone", event.target.value)
-                      }
-                      className="input-field"
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-                  <div className="sm:self-end">
+                  <div className="flex max-w-full items-center gap-1 rounded-lg bg-slate-100 p-1 text-[11px] font-bold">
                     <button
                       type="button"
-                      onClick={sendTest}
-                      disabled={
-                        testSending || !selectedTemplate || !wizard.audienceId
-                      }
-                      className="btn-secondary w-full justify-center disabled:opacity-50"
+                      onClick={() => changeTab("contacts")}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-2 transition ${tab === "contacts" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
                     >
-                      {testSending ? (
-                        <LoaderCircle size={16} className="animate-spin" />
-                      ) : (
-                        <MessageCircle size={16} />
-                      )}{" "}
-                      Send test
+                      Contacts sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeTab("audience")}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-2 transition ${tab === "audience" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                    >
+                      Saved audience
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeTab("upload")}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-2 transition ${tab === "upload" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                    >
+                      Nayi sheet upload
                     </button>
                   </div>
                 </div>
-              </div>
-            </details>
-          </div>
-          <aside className="h-fit space-y-4 xl:sticky xl:top-5">
-            <Panel title="Final review">
-              <div className="rounded-xl bg-primary-soft p-4">
-                <p className="text-sm font-bold text-primary">
-                  Recipients will receive a message
+              </section>
+
+              {tab === "contacts" && (
+                <div className="mt-3 space-y-2.5">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(145px,0.78fr)_minmax(0,1.22fr)]">
+                    <label className="relative block">
+                      <span className="sr-only">Contact filter</span>
+                      <select
+                        value={leadFilter}
+                        onChange={(event) => setLeadFilter(event.target.value)}
+                        className={`${fieldClass} appearance-none pr-9`}
+                      >
+                        <option value="all">Sab contacts</option>
+                        <option value="whatsapp">WhatsApp ready</option>
+                        <option value="missing">
+                          WhatsApp number nahi hai
+                        </option>
+                      </select>
+                      <ChevronDown
+                        size={15}
+                        className="pointer-events-none absolute right-3 top-3 text-slate-500"
+                      />
+                    </label>
+                    <label className="relative block">
+                      <span className="sr-only">Search contacts</span>
+                      <Search
+                        size={16}
+                        className="absolute left-3 top-3 text-slate-400"
+                      />
+                      <input
+                        value={leadSearch}
+                        onChange={(event) => {
+                          setLeadSearch(event.target.value);
+                          setLeadPage(1);
+                        }}
+                        className={`${fieldClass} pl-9`}
+                        placeholder="Naam, mobile, email, address ya job title"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-500">
+                        Sr. no.
+                      </span>
+                      <input
+                        aria-label="Range start"
+                        type="number"
+                        min="1"
+                        value={rangeStart}
+                        onChange={(event) => setRangeStart(event.target.value)}
+                        className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
+                      />
+                      <span className="text-slate-500">se</span>
+                      <input
+                        aria-label="Range end"
+                        type="number"
+                        min="1"
+                        value={rangeEnd}
+                        onChange={(event) => setRangeEnd(event.target.value)}
+                        className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
+                      />
+                      <span className="text-slate-500">tak</span>
+                      <button
+                        type="button"
+                        onClick={selectRange}
+                        disabled={!visibleLeads.length}
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-extrabold text-white hover:bg-emerald-700 disabled:opacity-45"
+                      >
+                        Select karein
+                      </button>
+                      <span className="hidden h-5 w-px bg-slate-200 sm:block" />
+                      <button
+                        type="button"
+                        onClick={selectVisibleLeads}
+                        disabled={
+                          !visibleLeads.some((lead) =>
+                            String(lead.phone || "").trim(),
+                          )
+                        }
+                        className="px-1 py-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800"
+                      >
+                        Sab{" "}
+                        {count(
+                          visibleLeads.filter((lead) =>
+                            String(lead.phone || "").trim(),
+                          ).length,
+                        )}{" "}
+                        select
+                      </button>
+                      {selectedLeadIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLeadIds([])}
+                          className="px-1 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <label className="mt-2 flex cursor-pointer items-center justify-end gap-2 text-[11px] text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={skipAlreadySent}
+                        onChange={(event) =>
+                          setSkipAlreadySent(event.target.checked)
+                        }
+                        className="h-3.5 w-3.5 accent-emerald-600"
+                      />
+                      Sirf jinhe abhi tak nahi bheja
+                    </label>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <div className="max-h-[350px] overflow-auto">
+                      <table className="w-full min-w-[490px] table-fixed text-left text-xs">
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-500">
+                          <tr>
+                            <th className="w-8 px-2 py-3">
+                              <input
+                                aria-label="Select all visible contacts"
+                                type="checkbox"
+                                checked={
+                                  visibleLeads.filter((lead) =>
+                                    String(lead.phone || "").trim(),
+                                  ).length > 0 &&
+                                  visibleLeads
+                                    .filter((lead) =>
+                                      String(lead.phone || "").trim(),
+                                    )
+                                    .every((lead) =>
+                                      selectedLeadIds.includes(
+                                        String(lead._id || lead.id),
+                                      ),
+                                    )
+                                }
+                                onChange={selectVisibleLeads}
+                                className="h-3.5 w-3.5 accent-emerald-600"
+                              />
+                            </th>
+                            <th className="w-10 px-2 py-3">Sr.</th>
+                            <th className="px-2 py-3">Naam</th>
+                            <th className="w-[130px] px-2 py-3">WhatsApp</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {leadsLoading && (
+                            <tr>
+                              <td
+                                colSpan={4}
+                                className="px-3 py-8 text-center text-slate-500"
+                              >
+                                <Loader2
+                                  size={17}
+                                  className="mx-auto mb-2 animate-spin"
+                                />
+                                Contacts load ho rahe hain…
+                              </td>
+                            </tr>
+                          )}
+                          {!leadsLoading && leadsError && (
+                            <tr>
+                              <td
+                                colSpan={4}
+                                className="px-3 py-5 text-center text-red-600"
+                              >
+                                {leadsError}
+                              </td>
+                            </tr>
+                          )}
+                          {!leadsLoading &&
+                            !leadsError &&
+                            visibleLeads.length === 0 && (
+                              <tr>
+                                <td
+                                  colSpan={4}
+                                  className="px-3 py-8 text-center text-slate-500"
+                                >
+                                  Koi contact nahi mila.
+                                </td>
+                              </tr>
+                            )}
+                          {!leadsLoading &&
+                            !leadsError &&
+                            visibleLeads.map((lead, index) => {
+                              const id = String(lead._id || lead.id);
+                              const serial =
+                                (leadPage - 1) * PAGE_SIZE + index + 1;
+                              const canSend = Boolean(
+                                String(lead.phone || "").trim(),
+                              );
+                              const checked = selectedLeadIds.includes(id);
+                              return (
+                                <tr
+                                  key={id}
+                                  className={`border-t border-slate-100 ${checked ? "bg-emerald-50" : "bg-white"}`}
+                                >
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`Select ${lead.name || "contact"}`}
+                                      disabled={!canSend}
+                                      checked={checked}
+                                      onChange={(event) =>
+                                        handleLeadCheckbox(lead, index, event)
+                                      }
+                                      className="h-3.5 w-3.5 accent-emerald-600 disabled:opacity-25"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3 text-slate-500">
+                                    {serial}
+                                  </td>
+                                  <td
+                                    className="truncate px-2 py-3 font-semibold text-slate-800"
+                                    title={lead.name || "Unknown contact"}
+                                  >
+                                    {lead.name || "—"}
+                                  </td>
+                                  <td
+                                    className="truncate px-2 py-3 text-slate-600"
+                                    title={lead.phone || "No WhatsApp number"}
+                                  >
+                                    {lead.phone || (
+                                      <span className="text-slate-400">
+                                        No phone
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5 text-[11px] text-slate-500">
+                      <span>
+                        Sr. {leadsTotal ? (leadPage - 1) * PAGE_SIZE + 1 : 0}–
+                        {Math.min(leadPage * PAGE_SIZE, leadsTotal)} of{" "}
+                        {count(leadsTotal)} · Shift dabakar click = beech ke sab
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-label="Previous page"
+                          disabled={leadPage <= 1 || leadsLoading}
+                          onClick={() =>
+                            setLeadPage((page) => Math.max(1, page - 1))
+                          }
+                          className="rounded-md border border-slate-200 p-1.5 disabled:opacity-30"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span>
+                          Page {leadPage} / {leadPages}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Next page"
+                          disabled={leadPage >= leadPages || leadsLoading}
+                          onClick={() =>
+                            setLeadPage((page) => Math.min(leadPages, page + 1))
+                          }
+                          className="rounded-md border border-slate-200 p-1.5 disabled:opacity-30"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tab === "audience" && (
+                <div className="mt-3 space-y-2.5">
+                  {audiencesLoading && (
+                    <div className="rounded-xl border border-slate-200 px-4 py-9 text-center text-sm text-slate-500">
+                      <Loader2
+                        size={18}
+                        className="mx-auto mb-2 animate-spin"
+                      />
+                      Saved audience load ho rahi hai…
+                    </div>
+                  )}
+                  {!audiencesLoading && audiencesError && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600"
+                    >
+                      {audiencesError}
+                    </div>
+                  )}
+                  {!audiencesLoading &&
+                    !audiencesError &&
+                    filteredAudienceList.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
+                        Abhi koi saved audience nahi hai. Pehle Upload Data se
+                        audience banayein.
+                      </div>
+                    )}
+                  {!audiencesLoading &&
+                    !audiencesError &&
+                    filteredAudienceList.map((audience) => {
+                      const id = String(audience._id || audience.id);
+                      const active = selectedAudienceId === id;
+                      const total = audienceTotal(audience);
+                      const ready = audienceWhatsAppReady(audience);
+                      return (
+                        <button
+                          type="button"
+                          key={id}
+                          onClick={() => {
+                            setSelectedAudienceId(id);
+                            setSelectedLeadIds([]);
+                            setSelectedUploadKeys([]);
+                            setRecipientPreview(null);
+                            setActionError("");
+                          }}
+                          className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${active ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-100" : "border-slate-200 bg-white hover:border-emerald-300"}`}
+                        >
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${active ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white"}`}
+                          >
+                            {active && <Check size={12} />}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-extrabold text-slate-800">
+                              {audience.name || "Untitled audience"}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                              {audience.sourceFileName
+                                ? `Uploaded · ${audience.sourceFileName}`
+                                : "Selected contacts"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-right">
+                            <span className="block text-base font-extrabold tabular-nums text-slate-800">
+                              {count(total)}
+                            </span>
+                            <span className="block text-[10px] text-slate-400">
+                              {count(ready)} WhatsApp ready
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+
+              {tab === "upload" && (
+                <div className="mt-3 space-y-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      handleUpload(file);
+                      event.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex min-h-[175px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40"
+                  >
+                    <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <FileSpreadsheet size={22} />
+                    </span>
+                    <span className="text-sm font-extrabold text-slate-800">
+                      CSV ya Excel sheet chunein
+                    </span>
+                    <span className="mt-1 text-xs text-slate-500">
+                      Name, Mobile / WhatsApp, Email address, Address, Job title
+                    </span>
+                    <span className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">
+                      <UploadCloud size={14} />
+                      {uploadFile
+                        ? "Dusri sheet chunein"
+                        : "Sheet upload karein"}
+                    </span>
+                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={saveUploadAsAudience}
+                        onChange={(event) =>
+                          setSaveUploadAsAudience(event.target.checked)
+                        }
+                        className="h-3.5 w-3.5 accent-emerald-600"
+                      />
+                      Is sheet ko audience bhi bana dein
+                    </label>
+                    <button
+                      type="button"
+                      onClick={downloadSampleSheet}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                    >
+                      <UploadCloud size={13} className="rotate-180" />
+                      Sample sheet
+                    </button>
+                  </div>
+                  {uploadFile && (
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      Selected file: <b>{uploadFile.name}</b>
+                    </p>
+                  )}
+                  {uploadLoading && (
+                    <div className="rounded-xl border border-slate-200 px-3 py-5 text-center text-sm text-slate-500">
+                      <Loader2
+                        size={17}
+                        className="mx-auto mb-2 animate-spin"
+                      />
+                      Sheet check ho rahi hai…
+                    </div>
+                  )}
+                  {!uploadLoading && uploadPreview && (
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2.5 text-xs">
+                        <span className="font-bold text-slate-700">
+                          {count(validUploadRows.length)} valid WhatsApp
+                          contacts
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={selectAllUploadRows}
+                            className="font-bold text-emerald-700"
+                          >
+                            Sab valid select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUploadKeys([])}
+                            className="font-semibold text-slate-500"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-[245px] overflow-auto">
+                        <table className="w-full min-w-[400px] text-left text-xs">
+                          <thead className="sticky top-0 bg-slate-100 text-slate-500">
+                            <tr>
+                              <th className="w-9 px-2 py-2.5"></th>
+                              <th className="w-12 px-2 py-2.5">Sr.</th>
+                              <th className="px-2 py-2.5">Naam</th>
+                              <th className="px-2 py-2.5">WhatsApp</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uploadRows.map((row, index) => {
+                              const eligible = eligibleUploadRow(row);
+                              const selected = selectedUploadKeys.includes(
+                                uploadRowKey(row, index),
+                              );
+                              return (
+                                <tr
+                                  key={uploadRowKey(row, index)}
+                                  className={`border-t border-slate-100 ${selected ? "bg-emerald-50" : "bg-white"}`}
+                                >
+                                  <td className="px-2 py-2.5">
+                                    <input
+                                      type="checkbox"
+                                      disabled={!eligible}
+                                      checked={selected}
+                                      onChange={(event) =>
+                                        toggleUploadRow(
+                                          row,
+                                          index,
+                                          event.target.checked,
+                                        )
+                                      }
+                                      className="h-3.5 w-3.5 accent-emerald-600 disabled:opacity-25"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2.5 text-slate-500">
+                                    {row.rowNumber || index + 1}
+                                  </td>
+                                  <td
+                                    className="max-w-[220px] truncate px-2 py-2.5 font-semibold text-slate-800"
+                                    title={row.name || ""}
+                                  >
+                                    {row.name || "—"}
+                                  </td>
+                                  <td className="px-2 py-2.5 text-slate-600">
+                                    {row.phone || row.mobile || "No phone"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {uploadRows.length === 0 && (
+                              <tr>
+                                <td
+                                  colSpan={4}
+                                  className="px-3 py-5 text-center text-slate-500"
+                                >
+                                  Sheet mein rows nahi mili.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <aside className="min-w-0 space-y-3">
+              <section className="rounded-xl border border-slate-200 p-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-800">
+                      Step 2 · Approved Meta template
+                    </h3>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Template first message ke liye required hai.
+                    </p>
+                  </div>
+                  <Link
+                    to="/whatsapp/templates/new"
+                    onClick={() => {
+                      if (onClose) onClose();
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700"
+                  >
+                    <Plus size={13} />
+                    New template · approval
+                  </Link>
+                </div>
+                <label
+                  className="mt-4 block text-[11px] font-bold text-slate-600"
+                  htmlFor="approved-meta-template"
+                >
+                  Choose template
+                </label>
+                <div className="relative mt-1.5">
+                  <select
+                    id="approved-meta-template"
+                    value={selectedTemplateKey}
+                    onChange={(event) =>
+                      setSelectedTemplateKey(event.target.value)
+                    }
+                    disabled={templatesLoading || templates.length === 0}
+                    className={`${fieldClass} appearance-none pr-9 disabled:cursor-not-allowed disabled:bg-slate-50`}
+                  >
+                    <option value="">
+                      {templatesLoading
+                        ? "Approved templates load ho rahe hain…"
+                        : templates.length
+                          ? "Select an approved template"
+                          : "No approved template found"}
+                    </option>
+                    {templates.map((template) => (
+                      <option
+                        key={`${template.name}::${template.language || "en_US"}`}
+                        value={`${template.name}::${template.language || "en_US"}`}
+                      >
+                        {template.name} ({template.language || "en_US"})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={15}
+                    className="pointer-events-none absolute right-3 top-3 text-slate-500"
+                  />
+                </div>
+                {selectedTemplate && templateBodyPreview && (
+                  <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                    <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
+                      Template preview
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">
+                      {templateBodyPreview}
+                    </p>
+                  </div>
+                )}
+                {!templatesLoading && !metaError && templates.length === 0 && (
+                  <p className="mt-2 text-[11px] text-amber-700">
+                    Meta Business Manager mein template approve hone ke baad
+                    yahan dikhega.
+                  </p>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-slate-200 p-3.5">
+                <h3 className="text-sm font-extrabold text-slate-800">
+                  Send now
+                </h3>
+                <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
+                  Campaign jobs launch karte hi start ho jayenge. Messages
+                  provider-safe pacing ke saath ek-ek karke bheje jayenge; daily
+                  schedule ya start-time setting nahi hai.
                 </p>
-                <p className="mt-1 text-4xl font-extrabold tabular-nums text-primary">
-                  {count(chosenCount)}
-                </p>
-              </div>
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-text-muted dark:text-ink-400">
-                    Meta charge / message
-                  </span>
-                  <b>
-                    {wizard.preview?.rateInr == null
-                      ? "Set the rate in Settings"
-                      : money(wizard.preview.rateInr)}
-                  </b>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-text-muted dark:text-ink-400">
-                    Estimated total
-                  </span>
-                  <b>
-                    {wizard.preview?.estimatedCostInr == null
-                      ? "Set the rate in Settings"
-                      : money(wizard.preview.estimatedCostInr)}
-                  </b>
-                </div>
-                <div className="rounded-lg bg-page p-3 text-xs leading-5 text-text-muted dark:bg-ink-800 dark:text-ink-400">
-                  Meta charges will be billed separately to your WhatsApp
-                  account.
-                </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-chip-warning-text/20 bg-chip-warning-bg p-3.5">
+                <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
                   <input
                     type="checkbox"
-                    checked={wizard.optInConfirmed}
+                    checked={optInConfirmed}
                     onChange={(event) =>
-                      wizard.setField("optInConfirmed", event.target.checked)
+                      setOptInConfirmed(event.target.checked)
                     }
-                    className="mt-1 h-4 w-4 accent-emerald-700"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
                   />
-                  <span className="text-xs leading-5 text-chip-warning-text">
-                    <b className="block">
-                      All these recipients have agreed to be contacted (opt-in).
-                    </b>{" "}
-                    Sending spam may result in your number being blocked.
+                  <span>
+                    Confirm karein: selected contacts ne WhatsApp messages ke
+                    liye opt-in diya hai.
                   </span>
                 </label>
-                <button
-                  type="button"
-                  onClick={launch}
-                  disabled={
-                    launching ||
-                    !wizard.optInConfirmed ||
-                    !selectedTemplate ||
-                    !(chosenCount > 0)
-                  }
-                  className="btn-primary w-full justify-center py-3 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {launching ? (
-                    <LoaderCircle size={17} className="animate-spin" />
-                  ) : wizard.scheduleMode === "later" ? (
-                    <CalendarClock size={17} />
-                  ) : (
-                    <Send size={17} />
-                  )}{" "}
-                  {launching
-                    ? "Adding campaign to the queue…"
-                    : wizard.scheduleMode === "later"
-                      ? "Schedule campaign"
-                      : "Start campaign"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(STEPS[1].path)}
-                  className="w-full py-2 text-sm font-bold text-text-muted hover:text-primary dark:text-ink-400"
-                >
-                  Go back
-                </button>
-              </div>
-            </Panel>
-          </aside>
+                {(tab === "contacts" || tab === "audience") &&
+                  (previewLoading || recipientPreview) && (
+                    <div className="mt-3 border-t border-slate-100 pt-3 text-xs">
+                      <div className="flex justify-between gap-2 text-slate-500">
+                        <span>Messages to be sent</span>
+                        <b className="text-slate-800">
+                          {previewLoading
+                            ? "…"
+                            : count(recipientPreview?.final ?? 0)}
+                        </b>
+                      </div>
+                      {recipientPreview?.skip > 0 && (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {count(recipientPreview.skip)} previously sent
+                          contacts skip honge.
+                        </p>
+                      )}
+                    </div>
+                  )}
+              </section>
+            </aside>
+          </div>
         </div>
-      )}
+
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+          <p className="text-[11px] text-slate-500">
+            <b className="text-slate-700">{count(footerCount)} contacts</b> ·
+            message tabhi jayega jab aap Start campaign dabayenge.
+          </p>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={close}
+              disabled={launching}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={launchCampaign}
+              disabled={startDisabled}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {launching ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={15} />
+              )}
+              {launching ? "Starting…" : "Start campaign"}
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
   );
 }

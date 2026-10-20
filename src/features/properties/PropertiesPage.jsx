@@ -7,6 +7,7 @@ import {
   Pencil,
   Check,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { propertyApi } from "../../api/propertyApi.js";
 import PropertyFormModal from "./PropertyFormModal.jsx";
@@ -47,6 +48,7 @@ export default function PropertiesPage() {
   const [error, setError] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deletingId, setDeletingId] = useState("");
   const timers = useRef({});
 
   const fetchRows = useCallback(async () => {
@@ -116,6 +118,48 @@ export default function PropertiesPage() {
       setError(
         requestError?.response?.data?.message || "Could not create a new row.",
       );
+    }
+  };
+
+  const handleDelete = async (property) => {
+    const id = property?._id;
+    if (!id || deletingId) return;
+
+    const propertyName = property.projectName?.trim() || "this property";
+    const confirmed = window.confirm(
+      `Delete "${propertyName}"? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setError("");
+    setDeletingId(id);
+
+    // Cancel pending auto-save timers for this row before deleting it.
+    COLS.forEach(([key]) => {
+      const timerKey = `${id}:${key}`;
+      clearTimeout(timers.current[timerKey]);
+      delete timers.current[timerKey];
+    });
+
+    try {
+      await propertyApi.remove(id);
+
+      // Remove the row immediately; backend deletion has succeeded.
+      setRows((current) => current.filter((item) => item._id !== id));
+      setSaving((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(([key]) => !key.startsWith(`${id}:`)),
+        ),
+      );
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message ||
+          "Could not delete this property. Please try again.",
+      );
+      // Refresh from the server so the table remains consistent.
+      await fetchRows();
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -209,7 +253,7 @@ export default function PropertiesPage() {
                   </th>
                 ))}
                 <th className="border p-2">Save status</th>
-                <th className="border p-2">Details</th>
+                <th className="border p-2">Actions</th>
               </tr>
               <tr>
                 <th className="sticky left-0 bg-white p-2 dark:bg-ink-900">
@@ -289,12 +333,30 @@ export default function PropertiesPage() {
                       )}
                     </td>
                     <td className="border p-2">
-                      <button
-                        className="btn-secondary px-2 py-1 text-xs"
-                        onClick={() => setEditing(row)}
-                      >
-                        <Pencil size={12} className="mr-1 inline" /> Details
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          className="btn-secondary inline-flex items-center px-2 py-1 text-xs"
+                          onClick={() => setEditing(row)}
+                          disabled={deletingId === row._id}
+                        >
+                          <Pencil size={12} className="mr-1" /> Details
+                        </button>
+                        <button
+                          type="button"
+                          title={`Delete ${row.projectName || "property"}`}
+                          aria-label={`Delete ${row.projectName || "property"}`}
+                          disabled={deletingId === row._id}
+                          onClick={() => handleDelete(row)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+                        >
+                          {deletingId === row._id ? (
+                            <Loader2 size={15} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={15} />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
