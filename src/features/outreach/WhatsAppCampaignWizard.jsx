@@ -272,7 +272,7 @@
 //       setLeads([]);
 //       setLeadsTotal(0);
 //       setLeadPages(1);
-//       setLeadsError(errorMessage(error, "Contacts sheet load nahi ho saki."));
+//       setLeadsError(errorMessage(error, "The contacts sheet could not be loaded."));
 //     } finally {
 //       setLeadsLoading(false);
 //     }
@@ -301,7 +301,7 @@
 //       .catch((error) => {
 //         if (alive)
 //           setAudiencesError(
-//             errorMessage(error, "Saved audience load nahi ho saki."),
+//             errorMessage(error, "The saved audience could not be loaded."),
 //           );
 //       })
 //       .finally(() => {
@@ -355,7 +355,7 @@
 //         setAudienceContactsError(
 //           errorMessage(
 //             error,
-//             "Selected audience ke contact numbers load nahi ho paaye.",
+//             "Could not load contact numbers for the selected audience.",
 //           ),
 //         );
 //       })
@@ -399,7 +399,7 @@
 //           setTemplates([]);
 //           setSelectedTemplateKey("");
 //           setMetaError(
-//             errorMessage(error, "Approved Meta templates load nahi ho sake."),
+//             errorMessage(error, "Could not load approved Meta templates."),
 //           );
 //         }
 //       })
@@ -425,7 +425,7 @@
 //               current ||
 //               errorMessage(
 //                 error,
-//                 "WhatsApp Meta connection status check nahi ho saka.",
+//                 "Could not check the WhatsApp Meta connection status.",
 //               ),
 //           );
 //       });
@@ -572,7 +572,7 @@
 //     const lower = file.name.toLowerCase();
 //     if (!lower.endsWith(".csv") && !lower.endsWith(".xlsx")) {
 //       setUploadError(
-//         "CSV ya Excel workbook (.xlsx) upload karein. Purani .xls file ko pehle .xlsx mein save karein.",
+//         "Upload a CSV or Excel workbook (.xlsx). Save older .xls files as .xlsx before uploading.",
 //       );
 //       return;
 //     }
@@ -593,7 +593,7 @@
 //       setUploadError(
 //         errorMessage(
 //           error,
-//           "Sheet read nahi ho saki. Header row aur file format check karein.",
+//           "Could not read the sheet. Check the header row and file format.",
 //         ),
 //       );
 //     } finally {
@@ -607,7 +607,7 @@
 //       downloadBlob(response, "propai-contacts-sample.xlsx");
 //     } catch (error) {
 //       setUploadError(
-//         errorMessage(error, "Sample sheet download nahi ho saki."),
+//         errorMessage(error, "Could not download the sample sheet."),
 //       );
 //     }
 //   };
@@ -645,22 +645,22 @@
 //     setActionError("");
 //     setNotice("");
 //     if (!campaignName.trim()) {
-//       setActionError("Campaign name zaroori hai.");
+//       setActionError("Campaign name is required.");
 //       return;
 //     }
 //     if (!selectedTemplate) {
-//       setActionError("Approved Meta template select karein.");
+//       setActionError("Select an approved Meta template.");
 //       return;
 //     }
 //     if (activeSelectedCount < 1 || effectiveCount < 1) {
 //       setActionError(
-//         "WhatsApp number wale kam se kam ek contact select karein.",
+//         "Select at least one contact with a WhatsApp number.",
 //       );
 //       return;
 //     }
 //     if (!optInConfirmed) {
 //       setActionError(
-//         "Campaign se pehle confirm karein ki selected contacts ne WhatsApp messages ke liye opt-in diya hai.",
+//         "Before launching the campaign, confirm that the selected contacts have opted in to receive WhatsApp messages.",
 //       );
 //       return;
 //     }
@@ -708,7 +708,7 @@
 //           const createdAudienceId = createdAudience?._id || createdAudience?.id;
 //           if (!createdAudienceId)
 //             throw new Error(
-//               "Audience save response mein ID nahi mili. Audience page check karein.",
+//               "The audience ID was missing from the save response. Check the Audience page.",
 //             );
 //           recipients = { audienceId: String(createdAudienceId) };
 //         } else {
@@ -758,7 +758,7 @@
 //       const queued = Number(result?.queued?.whatsapp ?? 0);
 //       const successMessage =
 //         response?.message ||
-//         `${count(queued)} WhatsApp messages campaign queue mein add ho gaye.`;
+//         `${count(queued)} WhatsApp messages have been added to the campaign queue.`;
 //       setNotice(successMessage);
 //       onCampaignStarted?.(successMessage);
 //       window.setTimeout(() => {
@@ -773,7 +773,7 @@
 //       setActionError(
 //         errorMessage(
 //           error,
-//           "Campaign start nahi ho saki. Selected contacts, template aur Meta settings check karein.",
+//           "The campaign could not be started. Check the selected contacts, template, and Meta settings.",
 //         ),
 //       );
 //     } finally {
@@ -798,21 +798,21 @@
 //     !optInConfirmed ||
 //     waitingForRecipientCheck;
 //   const startDisabledReason = launching
-//     ? "Campaign start ho rahi hai…"
+//     ? "Starting campaign…"
 //     : !campaignName.trim()
-//       ? "Campaign name likhein."
+//       ? "Enter a campaign name."
 //       : !selectedTemplate
-//         ? "Start karne se pehle approved Meta template select karein."
+//         ? "Select an approved Meta template before starting."
 //         : activeSelectedCount < 1
-//           ? "Pehle contacts ya saved audience select karein."
+//           ? "Select contacts or a saved audience first."
 //           : waitingForRecipientCheck
-//             ? "Selected contacts verify ho rahe hain…"
+//             ? "Verifying selected contacts…"
 //             : effectiveCount < 1
 //               ? skipAlreadySent
-//                 ? "Koi eligible contact nahi bacha. 'Pehle message nahi bheja' filter uncheck karke preview check karein."
-//                 : "Selected audience mein bhejne layak WhatsApp number nahi mila."
+//                 ? "No eligible contacts remain. Clear the 'Skip previously messaged contacts' filter and check the preview."
+//                 : "No eligible WhatsApp numbers were found in the selected audience."
 //               : !optInConfirmed
-//                 ? "Start karne ke liye WhatsApp opt-in confirmation tick karein."
+//                 ? "Confirm WhatsApp opt-in to start the campaign."
 //                 : "";
 
 //   return createPortal(
@@ -841,7 +841,7 @@
 //                 Create WhatsApp campaign
 //               </h2>
 //               <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-//                 Audience chunein, template ka preview dekhein, aur bhejein.
+//                 Choose an audience, preview the template, and send.
 //               </p>
 //             </div>
 //           </div>
@@ -917,7 +917,7 @@
 //                 <div className="flex flex-wrap items-center justify-between gap-2">
 //                   <div>
 //                     <h3 className="text-sm font-extrabold text-slate-800">
-//                       Step 1 · Kisko bhejna hai?
+//                       Step 1 · Choose recipients
 //                     </h3>
 //                     <p className="mt-0.5 text-[11px] text-slate-500">
 //                       {count(footerCount)} contacts selected
@@ -959,10 +959,10 @@
 //                         onChange={(event) => setLeadFilter(event.target.value)}
 //                         className={`${fieldClass} appearance-none pr-9`}
 //                       >
-//                         <option value="all">Sab contacts</option>
+//                         <option value="all">All contacts</option>
 //                         <option value="whatsapp">WhatsApp ready</option>
 //                         <option value="missing">
-//                           WhatsApp number nahi hai
+//                           No WhatsApp number
 //                         </option>
 //                       </select>
 //                       <ChevronDown
@@ -983,7 +983,7 @@
 //                           setLeadPage(1);
 //                         }}
 //                         className={`${fieldClass} pl-9`}
-//                         placeholder="Naam, mobile, email, address ya job title"
+//                         placeholder="Name, phone, email, address, or job title"
 //                       />
 //                     </label>
 //                   </div>
@@ -1001,7 +1001,7 @@
 //                         onChange={(event) => setRangeStart(event.target.value)}
 //                         className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
 //                       />
-//                       <span className="text-slate-500">se</span>
+//                       <span className="text-slate-500">From</span>
 //                       <input
 //                         aria-label="Range end"
 //                         type="number"
@@ -1010,14 +1010,14 @@
 //                         onChange={(event) => setRangeEnd(event.target.value)}
 //                         className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
 //                       />
-//                       <span className="text-slate-500">tak</span>
+//                       <span className="text-slate-500">To</span>
 //                       <button
 //                         type="button"
 //                         onClick={selectRange}
 //                         disabled={!visibleLeads.length}
 //                         className="rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-extrabold text-white hover:bg-emerald-700 disabled:opacity-45"
 //                       >
-//                         Select karein
+//                         Select
 //                       </button>
 //                       <span className="hidden h-5 w-px bg-slate-200 sm:block" />
 //                       <button
@@ -1030,7 +1030,7 @@
 //                         }
 //                         className="px-1 py-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800"
 //                       >
-//                         Sab{" "}
+//                         All{" "}
 //                         {count(
 //                           visibleLeads.filter((lead) =>
 //                             String(lead.phone || "").trim(),
@@ -1078,7 +1078,7 @@
 //                               />
 //                             </th>
 //                             <th className="w-10 px-2 py-3">Sr.</th>
-//                             <th className="px-2 py-3">Naam</th>
+//                             <th className="px-2 py-3">Name</th>
 //                             <th className="w-[130px] px-2 py-3">WhatsApp</th>
 //                           </tr>
 //                         </thead>
@@ -1093,7 +1093,7 @@
 //                                   size={17}
 //                                   className="mx-auto mb-2 animate-spin"
 //                                 />
-//                                 Contacts load ho rahe hain…
+//                                 Loading contacts…
 //                               </td>
 //                             </tr>
 //                           )}
@@ -1115,7 +1115,7 @@
 //                                   colSpan={4}
 //                                   className="px-3 py-8 text-center text-slate-500"
 //                                 >
-//                                   Koi contact nahi mila.
+//                                   No contacts found.
 //                                 </td>
 //                               </tr>
 //                             )}
@@ -1175,7 +1175,7 @@
 //                       <span>
 //                         Sr. {leadsTotal ? (leadPage - 1) * PAGE_SIZE + 1 : 0}–
 //                         {Math.min(leadPage * PAGE_SIZE, leadsTotal)} of{" "}
-//                         {count(leadsTotal)} · Shift dabakar click = beech ke sab
+//                         {count(leadsTotal)} · Hold Shift and click to select all contacts in between
 //                       </span>
 //                       <div className="flex items-center gap-2">
 //                         <button
@@ -1217,7 +1217,7 @@
 //                         size={18}
 //                         className="mx-auto mb-2 animate-spin"
 //                       />
-//                       Saved audience load ho rahi hai…
+//                       Loading saved audience…
 //                     </div>
 //                   )}
 //                   {!audiencesLoading && audiencesError && (
@@ -1232,7 +1232,7 @@
 //                     !audiencesError &&
 //                     filteredAudienceList.length === 0 && (
 //                       <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
-//                         Abhi koi saved audience nahi hai. Pehle Upload Data se
+//                         No saved audience yet. Create an audience from Upload Data first.
 //                         audience banayein.
 //                       </div>
 //                     )}
@@ -1307,7 +1307,7 @@
 //                       {audienceContactsLoading ? (
 //                         <div className="flex items-center justify-center gap-2 px-3 py-7 text-sm text-slate-500">
 //                           <Loader2 size={16} className="animate-spin" /> Contact
-//                           numbers load ho rahe hain…
+//                           Loading contact numbers…
 //                         </div>
 //                       ) : audienceContactsError ? (
 //                         <div
@@ -1318,8 +1318,7 @@
 //                         </div>
 //                       ) : audienceContacts.length === 0 ? (
 //                         <div className="px-3 py-5 text-xs text-slate-500">
-//                           Is audience mein dikhane ke liye saved contacts nahi
-//                           mile.
+//                           No saved contacts were found to display in this audience.
 //                         </div>
 //                       ) : (
 //                         <div className="max-h-[250px] overflow-auto">
@@ -1417,8 +1416,8 @@
 //                         </div>
 //                       )}
 //                       <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-400">
-//                         Ye preview list hai; contact table par click karne se
-//                         audience membership nahi badlegi.
+//                         This is a preview list. Clicking the contact table will
+//                         not change audience membership.
 //                       </p>
 //                     </section>
 //                   )}
@@ -1447,7 +1446,7 @@
 //                       <FileSpreadsheet size={22} />
 //                     </span>
 //                     <span className="text-sm font-extrabold text-slate-800">
-//                       CSV ya Excel sheet chunein
+//                       Choose a CSV or Excel file
 //                     </span>
 //                     <span className="mt-1 text-xs text-slate-500">
 //                       Name, Mobile / WhatsApp, Email address, Address, Job title
@@ -1455,8 +1454,8 @@
 //                     <span className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">
 //                       <UploadCloud size={14} />
 //                       {uploadFile
-//                         ? "Dusri sheet chunein"
-//                         : "Sheet upload karein"}
+//                         ? "Choose another file"
+//                         : "Upload sheet"}
 //                     </span>
 //                   </button>
 //                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1469,7 +1468,7 @@
 //                         }
 //                         className="h-3.5 w-3.5 accent-emerald-600"
 //                       />
-//                       Is sheet ko audience bhi bana dein
+//                       Also save this sheet as an audience
 //                     </label>
 //                     <button
 //                       type="button"
@@ -1491,7 +1490,7 @@
 //                         size={17}
 //                         className="mx-auto mb-2 animate-spin"
 //                       />
-//                       Sheet check ho rahi hai…
+//                       Validating sheet…
 //                     </div>
 //                   )}
 //                   {!uploadLoading && uploadPreview && (
@@ -1507,7 +1506,7 @@
 //                             onClick={selectAllUploadRows}
 //                             className="font-bold text-emerald-700"
 //                           >
-//                             Sab valid select
+//                             Select all valid rows
 //                           </button>
 //                           <button
 //                             type="button"
@@ -1524,7 +1523,7 @@
 //                             <tr>
 //                               <th className="w-9 px-2 py-2.5"></th>
 //                               <th className="w-12 px-2 py-2.5">Sr.</th>
-//                               <th className="px-2 py-2.5">Naam</th>
+//                               <th className="px-2 py-2.5">Name</th>
 //                               <th className="px-2 py-2.5">WhatsApp</th>
 //                             </tr>
 //                           </thead>
@@ -1575,7 +1574,7 @@
 //                                   colSpan={4}
 //                                   className="px-3 py-5 text-center text-slate-500"
 //                                 >
-//                                   Sheet mein rows nahi mili.
+//                                   No rows were found in the sheet.
 //                                 </td>
 //                               </tr>
 //                             )}
@@ -1596,7 +1595,7 @@
 //                       Step 2 · Approved Meta template
 //                     </h3>
 //                     <p className="mt-1 text-[11px] text-slate-500">
-//                       Template first message ke liye required hai.
+//                       A template is required for the first message.
 //                     </p>
 //                   </div>
 //                   <Link
@@ -1628,7 +1627,7 @@
 //                   >
 //                     <option value="">
 //                       {templatesLoading
-//                         ? "Approved templates load ho rahe hain…"
+//                         ? "Loading approved templates…"
 //                         : templates.length
 //                           ? "Select an approved template"
 //                           : "No approved template found"}
@@ -1659,7 +1658,7 @@
 //                 )}
 //                 {!templatesLoading && !metaError && templates.length === 0 && (
 //                   <p className="mt-2 text-[11px] text-amber-700">
-//                     Meta Business Manager mein template approve hone ke baad
+//                     After the template is approved in Meta Business Manager
 //                     yahan dikhega.
 //                   </p>
 //                 )}
@@ -1670,9 +1669,7 @@
 //                   Send now
 //                 </h3>
 //                 <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
-//                   Campaign jobs launch karte hi start ho jayenge. Messages
-//                   provider-safe pacing ke saath ek-ek karke bheje jayenge; daily
-//                   schedule ya start-time setting nahi hai.
+//                   Campaign jobs start as soon as they are launched. Messages are sent one at a time using provider-safe pacing; there is no daily schedule or start-time setting.
 //                 </p>
 //                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
 //                   <input
@@ -1684,8 +1681,8 @@
 //                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
 //                   />
 //                   <span>
-//                     Sirf un contacts ko bhejein jinhe is channel par pehle
-//                     message nahi bheja gaya.
+//                     Send messages only to contacts who have not previously
+//                     received a message through this channel.
 //                   </span>
 //                 </label>
 //                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
@@ -1698,8 +1695,7 @@
 //                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
 //                   />
 //                   <span>
-//                     Confirm karein: selected contacts ne WhatsApp messages ke
-//                     liye opt-in diya hai.
+//                     Confirm that the selected contacts have opted in to receive WhatsApp messages.
 //                   </span>
 //                 </label>
 //                 {(tab === "contacts" || tab === "audience") &&
@@ -1716,7 +1712,7 @@
 //                       {recipientPreview?.skip > 0 && (
 //                         <p className="mt-1 text-[10px] text-slate-500">
 //                           {count(recipientPreview.skip)} previously sent
-//                           contacts skip honge.
+//                           contacts will be skipped.
 //                         </p>
 //                       )}
 //                     </div>
@@ -1730,7 +1726,7 @@
 //           <div className="min-w-0 flex-1">
 //             <p className="text-[11px] text-slate-500">
 //               <b className="text-slate-700">{count(footerCount)} contacts</b> ·
-//               message tabhi jayega jab aap Start campaign dabayenge.
+//               Messages will be sent only after you click Start Campaign.
 //             </p>
 //             {startDisabled && startDisabledReason && (
 //               <p className="mt-1 max-w-[580px] text-[11px] font-semibold text-amber-700">
@@ -2042,7 +2038,9 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       setLeads([]);
       setLeadsTotal(0);
       setLeadPages(1);
-      setLeadsError(errorMessage(error, "Contacts sheet load nahi ho saki."));
+      setLeadsError(
+        errorMessage(error, "The contacts sheet could not be loaded."),
+      );
     } finally {
       setLeadsLoading(false);
     }
@@ -2071,7 +2069,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       .catch((error) => {
         if (alive)
           setAudiencesError(
-            errorMessage(error, "Saved audience load nahi ho saki."),
+            errorMessage(error, "The saved audience could not be loaded."),
           );
       })
       .finally(() => {
@@ -2125,7 +2123,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
         setAudienceContactsError(
           errorMessage(
             error,
-            "Selected audience ke contact numbers load nahi ho paaye.",
+            "Could not load contact numbers for the selected audience.",
           ),
         );
       })
@@ -2169,7 +2167,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
           setTemplates([]);
           setSelectedTemplateKey("");
           setMetaError(
-            errorMessage(error, "Approved Meta templates load nahi ho sake."),
+            errorMessage(error, "Could not load approved Meta templates."),
           );
         }
       })
@@ -2195,7 +2193,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
               current ||
               errorMessage(
                 error,
-                "WhatsApp Meta connection status check nahi ho saka.",
+                "Could not check the WhatsApp Meta connection status.",
               ),
           );
       });
@@ -2342,7 +2340,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
     const lower = file.name.toLowerCase();
     if (!lower.endsWith(".csv") && !lower.endsWith(".xlsx")) {
       setUploadError(
-        "CSV ya Excel workbook (.xlsx) upload karein. Purani .xls file ko pehle .xlsx mein save karein.",
+        "Upload a CSV or Excel workbook (.xlsx). Save older .xls files as .xlsx before uploading.",
       );
       return;
     }
@@ -2363,7 +2361,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       setUploadError(
         errorMessage(
           error,
-          "Sheet read nahi ho saki. Header row aur file format check karein.",
+          "Could not read the sheet. Check the header row and file format.",
         ),
       );
     } finally {
@@ -2377,7 +2375,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       downloadBlob(response, "propai-contacts-sample.xlsx");
     } catch (error) {
       setUploadError(
-        errorMessage(error, "Sample sheet download nahi ho saki."),
+        errorMessage(error, "Could not download the sample sheet."),
       );
     }
   };
@@ -2415,22 +2413,20 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
     setActionError("");
     setNotice("");
     if (!campaignName.trim()) {
-      setActionError("Campaign name zaroori hai.");
+      setActionError("Campaign name is required.");
       return;
     }
     if (!selectedTemplate) {
-      setActionError("Approved Meta template select karein.");
+      setActionError("Select an approved Meta template.");
       return;
     }
     if (activeSelectedCount < 1 || effectiveCount < 1) {
-      setActionError(
-        "WhatsApp number wale kam se kam ek contact select karein.",
-      );
+      setActionError("Select at least one contact with a WhatsApp number.");
       return;
     }
     if (!optInConfirmed) {
       setActionError(
-        "Campaign se pehle confirm karein ki selected contacts ne WhatsApp messages ke liye opt-in diya hai.",
+        "Before launching the campaign, confirm that the selected contacts have opted in to receive WhatsApp messages.",
       );
       return;
     }
@@ -2478,7 +2474,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
           const createdAudienceId = createdAudience?._id || createdAudience?.id;
           if (!createdAudienceId)
             throw new Error(
-              "Audience save response mein ID nahi mili. Audience page check karein.",
+              "The audience ID was missing from the save response. Check the Audience page.",
             );
           recipients = { audienceId: String(createdAudienceId) };
         } else {
@@ -2528,7 +2524,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       const queued = Number(result?.queued?.whatsapp ?? 0);
       const successMessage =
         response?.message ||
-        `${count(queued)} WhatsApp messages campaign queue mein add ho gaye.`;
+        `${count(queued)} WhatsApp messages have been added to the campaign queue.`;
       setNotice(successMessage);
       onCampaignStarted?.(successMessage);
       window.setTimeout(() => {
@@ -2543,7 +2539,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
       setActionError(
         errorMessage(
           error,
-          "Campaign start nahi ho saki. Selected contacts, template aur Meta settings check karein.",
+          "The campaign could not be started. Check the selected contacts, template, and Meta settings.",
         ),
       );
     } finally {
@@ -2568,21 +2564,21 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
     !optInConfirmed ||
     waitingForRecipientCheck;
   const startDisabledReason = launching
-    ? "Campaign start ho rahi hai…"
+    ? "Starting campaign…"
     : !campaignName.trim()
-      ? "Campaign name likhein."
+      ? "Enter a campaign name."
       : !selectedTemplate
-        ? "Start karne se pehle approved Meta template select karein."
+        ? "Select an approved Meta template before starting."
         : activeSelectedCount < 1
-          ? "Pehle contacts ya saved audience select karein."
+          ? "Select contacts or a saved audience first."
           : waitingForRecipientCheck
-            ? "Selected contacts verify ho rahe hain…"
+            ? "Verifying selected contacts…"
             : effectiveCount < 1
               ? skipAlreadySent
-                ? "Koi eligible contact nahi bacha. 'Pehle message nahi bheja' filter uncheck karke preview check karein."
-                : "Selected audience mein bhejne layak WhatsApp number nahi mila."
+                ? "No eligible contacts remain. Clear the 'Skip previously messaged contacts' filter and check the preview."
+                : "No eligible WhatsApp numbers were found in the selected audience."
               : !optInConfirmed
-                ? "Start karne ke liye WhatsApp opt-in confirmation tick karein."
+                ? "Confirm WhatsApp opt-in to start the campaign."
                 : "";
 
   return createPortal(
@@ -2611,7 +2607,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                 Create WhatsApp campaign
               </h2>
               <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-                Audience chunein, template ka preview dekhein, aur bhejein.
+                Choose an audience, preview the template, and send.
               </p>
             </div>
           </div>
@@ -2687,7 +2683,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-800">
-                      Step 1 · Kisko bhejna hai?
+                      Step 1 · Choose recipients
                     </h3>
                     <p className="mt-0.5 text-[11px] text-slate-500">
                       {count(footerCount)} contacts selected
@@ -2729,11 +2725,9 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         onChange={(event) => setLeadFilter(event.target.value)}
                         className={`${fieldClass} appearance-none pr-9`}
                       >
-                        <option value="all">Sab contacts</option>
+                        <option value="all">All contacts</option>
                         <option value="whatsapp">WhatsApp ready</option>
-                        <option value="missing">
-                          WhatsApp number nahi hai
-                        </option>
+                        <option value="missing">No WhatsApp number</option>
                       </select>
                       <ChevronDown
                         size={15}
@@ -2753,7 +2747,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                           setLeadPage(1);
                         }}
                         className={`${fieldClass} pl-9`}
-                        placeholder="Naam, mobile, email, address ya job title"
+                        placeholder="Name, phone, email, address, or job title"
                       />
                     </label>
                   </div>
@@ -2771,7 +2765,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         onChange={(event) => setRangeStart(event.target.value)}
                         className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
                       />
-                      <span className="text-slate-500">se</span>
+                      <span className="text-slate-500">From</span>
                       <input
                         aria-label="Range end"
                         type="number"
@@ -2780,14 +2774,14 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         onChange={(event) => setRangeEnd(event.target.value)}
                         className="w-[68px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-xs outline-none focus:border-emerald-500"
                       />
-                      <span className="text-slate-500">tak</span>
+                      <span className="text-slate-500">To</span>
                       <button
                         type="button"
                         onClick={selectRange}
                         disabled={!visibleLeads.length}
                         className="rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-extrabold text-white hover:bg-emerald-700 disabled:opacity-45"
                       >
-                        Select karein
+                        Select
                       </button>
                       <span className="hidden h-5 w-px bg-slate-200 sm:block" />
                       <button
@@ -2800,7 +2794,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         }
                         className="px-1 py-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800"
                       >
-                        Sab{" "}
+                        All{" "}
                         {count(
                           visibleLeads.filter((lead) =>
                             String(lead.phone || "").trim(),
@@ -2848,7 +2842,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                               />
                             </th>
                             <th className="w-10 px-2 py-3">Sr.</th>
-                            <th className="px-2 py-3">Naam</th>
+                            <th className="px-2 py-3">Name</th>
                             <th className="w-[130px] px-2 py-3">WhatsApp</th>
                           </tr>
                         </thead>
@@ -2863,7 +2857,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                                   size={17}
                                   className="mx-auto mb-2 animate-spin"
                                 />
-                                Contacts load ho rahe hain…
+                                Loading contacts…
                               </td>
                             </tr>
                           )}
@@ -2885,7 +2879,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                                   colSpan={4}
                                   className="px-3 py-8 text-center text-slate-500"
                                 >
-                                  Koi contact nahi mila.
+                                  No contacts found.
                                 </td>
                               </tr>
                             )}
@@ -2945,7 +2939,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                       <span>
                         Sr. {leadsTotal ? (leadPage - 1) * PAGE_SIZE + 1 : 0}–
                         {Math.min(leadPage * PAGE_SIZE, leadsTotal)} of{" "}
-                        {count(leadsTotal)} · Shift dabakar click = beech ke sab
+                        {count(leadsTotal)} · Hold Shift and click to select all
+                        contacts in between
                       </span>
                       <div className="flex items-center gap-2">
                         <button
@@ -2987,7 +2982,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         size={18}
                         className="mx-auto mb-2 animate-spin"
                       />
-                      Saved audience load ho rahi hai…
+                      Loading saved audience…
                     </div>
                   )}
                   {!audiencesLoading && audiencesError && (
@@ -3002,8 +2997,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                     !audiencesError &&
                     filteredAudienceList.length === 0 && (
                       <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
-                        Abhi koi saved audience nahi hai. Pehle Upload Data se
-                        audience banayein.
+                        No saved audience yet. Create an audience from Upload
+                        Data first. audience banayein.
                       </div>
                     )}
                   {!audiencesLoading &&
@@ -3077,7 +3072,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                       {audienceContactsLoading ? (
                         <div className="flex items-center justify-center gap-2 px-3 py-7 text-sm text-slate-500">
                           <Loader2 size={16} className="animate-spin" /> Contact
-                          numbers load ho rahe hain…
+                          Loading contact numbers…
                         </div>
                       ) : audienceContactsError ? (
                         <div
@@ -3088,8 +3083,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         </div>
                       ) : audienceContacts.length === 0 ? (
                         <div className="px-3 py-5 text-xs text-slate-500">
-                          Is audience mein dikhane ke liye saved contacts nahi
-                          mile.
+                          No saved contacts were found to display in this
+                          audience.
                         </div>
                       ) : (
                         <div className="max-h-[250px] overflow-auto">
@@ -3187,8 +3182,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         </div>
                       )}
                       <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-400">
-                        Ye preview list hai; contact table par click karne se
-                        audience membership nahi badlegi.
+                        This is a preview list. Clicking the contact table will
+                        not change audience membership.
                       </p>
                     </section>
                   )}
@@ -3217,16 +3212,14 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                       <FileSpreadsheet size={22} />
                     </span>
                     <span className="text-sm font-extrabold text-slate-800">
-                      CSV ya Excel sheet chunein
+                      Choose a CSV or Excel file
                     </span>
                     <span className="mt-1 text-xs text-slate-500">
                       Name, Mobile / WhatsApp, Email address, Address, Job title
                     </span>
                     <span className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">
                       <UploadCloud size={14} />
-                      {uploadFile
-                        ? "Dusri sheet chunein"
-                        : "Sheet upload karein"}
+                      {uploadFile ? "Choose another file" : "Upload sheet"}
                     </span>
                   </button>
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3239,7 +3232,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         }
                         className="h-3.5 w-3.5 accent-emerald-600"
                       />
-                      Is sheet ko audience bhi bana dein
+                      Also save this sheet as an audience
                     </label>
                     <button
                       type="button"
@@ -3261,7 +3254,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                         size={17}
                         className="mx-auto mb-2 animate-spin"
                       />
-                      Sheet check ho rahi hai…
+                      Validating sheet…
                     </div>
                   )}
                   {!uploadLoading && uploadPreview && (
@@ -3277,7 +3270,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                             onClick={selectAllUploadRows}
                             className="font-bold text-emerald-700"
                           >
-                            Sab valid select
+                            Select all valid rows
                           </button>
                           <button
                             type="button"
@@ -3294,7 +3287,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                             <tr>
                               <th className="w-9 px-2 py-2.5"></th>
                               <th className="w-12 px-2 py-2.5">Sr.</th>
-                              <th className="px-2 py-2.5">Naam</th>
+                              <th className="px-2 py-2.5">Name</th>
                               <th className="px-2 py-2.5">WhatsApp</th>
                             </tr>
                           </thead>
@@ -3345,7 +3338,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                                   colSpan={4}
                                   className="px-3 py-5 text-center text-slate-500"
                                 >
-                                  Sheet mein rows nahi mili.
+                                  No rows were found in the sheet.
                                 </td>
                               </tr>
                             )}
@@ -3366,7 +3359,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                       Step 2 · Approved Meta template
                     </h3>
                     <p className="mt-1 text-[11px] text-slate-500">
-                      Template first message ke liye required hai.
+                      A template is required for the first message.
                     </p>
                   </div>
                   <Link
@@ -3398,7 +3391,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                   >
                     <option value="">
                       {templatesLoading
-                        ? "Approved templates load ho rahe hain…"
+                        ? "Loading approved templates…"
                         : templates.length
                           ? "Select an approved template"
                           : "No approved template found"}
@@ -3429,7 +3422,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                 )}
                 {!templatesLoading && !metaError && templates.length === 0 && (
                   <p className="mt-2 text-[11px] text-amber-700">
-                    Meta Business Manager mein template approve hone ke baad
+                    After the template is approved in Meta Business Manager
                     yahan dikhega.
                   </p>
                 )}
@@ -3440,9 +3433,9 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                   Send now
                 </h3>
                 <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
-                  Campaign jobs launch karte hi start ho jayenge. Messages
-                  provider-safe pacing ke saath ek-ek karke bheje jayenge; daily
-                  schedule ya start-time setting nahi hai.
+                  Campaign jobs start as soon as they are launched. Messages are
+                  sent one at a time using provider-safe pacing; no daily
+                  schedule or start-time setting is available.
                 </p>
                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
                   <input
@@ -3454,8 +3447,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
                   />
                   <span>
-                    Pehle message paa chuke contacts ko skip karein (repeat
-                    message nahi bhejna).
+                    Skip contacts who have already received a message (do not
+                    send duplicate messages).
                   </span>
                 </label>
                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
@@ -3468,7 +3461,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
                   />
                   <span>
-                    Confirm karein: selected contacts ne WhatsApp messages ke
+                    Confirm that the selected contacts have opted in to receive
                     liye opt-in diya hai.
                   </span>
                 </label>
@@ -3486,7 +3479,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                       {recipientPreview?.skip > 0 && (
                         <p className="mt-1 text-[10px] text-slate-500">
                           {count(recipientPreview.skip)} previously sent
-                          contacts skip honge.
+                          contacts will be skipped.
                         </p>
                       )}
                     </div>
@@ -3500,7 +3493,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
           <div className="min-w-0 flex-1">
             <p className="text-[11px] text-slate-500">
               <b className="text-slate-700">{count(footerCount)} contacts</b> ·
-              message tabhi jayega jab aap Start campaign dabayenge.
+              Messages will be sent only after you click Start Campaign.
             </p>
             {startDisabled && startDisabledReason && (
               <p className="mt-1 max-w-[580px] text-[11px] font-semibold text-amber-700">

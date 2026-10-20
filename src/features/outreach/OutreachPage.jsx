@@ -45,7 +45,7 @@ const FILTERS = [
   { value: "", label: "All" },
   { value: "sent", label: "Sent" },
   { value: "processing", label: "Sending" },
-  { value: "pending", label: "In queue" },
+  { value: "pending", label: "In Queue" },
   { value: "scheduled", label: "Scheduled" },
   { value: "failed", label: "Failed" },
 ];
@@ -334,7 +334,7 @@ export default function OutreachPage({ channel }) {
           <h2 className="mb-3 font-display text-lg font-semibold text-ink-900 dark:text-white">
             Campaigns
           </h2>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {campaigns.map((c) => (
               <CampaignCard
                 key={c._id}
@@ -356,14 +356,34 @@ export default function OutreachPage({ channel }) {
       {/* Lead-wise list */}
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-white">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-white">
+              Leads
+            </h2>
+
+            {campaignId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCampaignId("");
+                  setPage(1);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-950/40 dark:text-brand-300 dark:hover:bg-brand-900/50"
+              >
+                Show All Campaigns
+                <span aria-hidden="true">×</span>
+              </button>
+            )}
+          </div>
+
+          {/* <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-white">
             Leads{" "}
             {campaignId && (
               <span className="text-sm font-normal text-ink-500">
                 (filtered by campaign — click it again to clear)
               </span>
             )}
-          </h2>
+          </h2> */}
           <div className="flex flex-wrap gap-1.5">
             {FILTERS.map((f) => (
               <button
@@ -431,7 +451,7 @@ export default function OutreachPage({ channel }) {
                   <td className="px-4 py-3 font-medium text-ink-900 dark:text-white">
                     {j.name && j.name !== "(deleted lead)"
                       ? j.name
-                      : "Lead contact unavailable"}
+                      : "Lead Contact Unavailable"}
                   </td>
                   <td className="px-4 py-3 text-ink-600 dark:text-ink-300">
                     {meta.contact(j)}
