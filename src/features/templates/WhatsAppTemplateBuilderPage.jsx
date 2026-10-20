@@ -86,6 +86,7 @@ export default function WhatsAppTemplateBuilderPage() {
   const [language, setLanguage] = useState("en_US");
   const [headerType, setHeaderType] = useState("none");
   const [headerText, setHeaderText] = useState("");
+  const [messageHeading, setMessageHeading] = useState("");
   const [headerImageUrl, setHeaderImageUrl] = useState("");
   const [headerDocumentUrl, setHeaderDocumentUrl] = useState("");
   const [headerFileName, setHeaderFileName] = useState("");
@@ -151,6 +152,7 @@ export default function WhatsAppTemplateBuilderPage() {
     setHeaderText(
       template.headerText || getComponent(template, "HEADER")?.text || "",
     );
+    setMessageHeading("");
     setHeaderImageUrl(template.headerImageUrl || template.imageUrl || "");
     setHeaderDocumentUrl(
       template.headerDocumentUrl || template.documentUrl || "",
@@ -188,6 +190,7 @@ export default function WhatsAppTemplateBuilderPage() {
         setLanguage("en_US");
         setHeaderType("none");
         setHeaderText("");
+        setMessageHeading("");
         setHeaderImageUrl("");
         setHeaderDocumentUrl("");
         setHeaderFileName("");
@@ -244,7 +247,12 @@ export default function WhatsAppTemplateBuilderPage() {
     headerImageUrl: headerType === "image" ? headerImageUrl : "",
     headerDocumentUrl: isDocumentHeader ? headerDocumentUrl : "",
     headerFileName: isDocumentHeader ? headerFileName : "",
-    bodyText: bodyText.trim(),
+    bodyText: [
+      headerType === "image" ? messageHeading.trim() : "",
+      bodyText.trim(),
+    ]
+      .filter(Boolean)
+      .join("\n"),
     footerText: footerText.trim(),
     buttons: buttons
       .filter((button) => button.text.trim())
@@ -617,6 +625,24 @@ export default function WhatsAppTemplateBuilderPage() {
                 )}
               </div>
             )}
+            {headerType === "image" && (
+              <div className="space-y-1.5">
+                <label className="block text-sm font-bold text-ink-700 dark:text-ink-200">
+                  Message heading (optional)
+                </label>
+                <input
+                  className="input-field"
+                  value={messageHeading}
+                  onChange={(event) => setMessageHeading(event.target.value)}
+                  maxLength={60}
+                  placeholder="e.g. Exclusive Property Offers"
+                />
+                <p className="text-xs text-ink-500 dark:text-ink-400">
+                  Appears in bold directly below the image. It is added to the
+                  start of the message body for Meta.
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="card space-y-4 !p-5">
@@ -796,7 +822,13 @@ export default function WhatsAppTemplateBuilderPage() {
               accountLabel="Business account"
               customerName="Ayush"
               greeting=""
-              title={headerType === "text" ? headerText : ""}
+              title={
+                headerType === "text"
+                  ? headerText
+                  : headerType === "image"
+                    ? messageHeading
+                    : ""
+              }
               body={previewBody}
               footer={footerText}
               buttons={buttons.filter((button) => button.text.trim())}
