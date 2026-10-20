@@ -215,6 +215,34 @@ export default function OutreachPage({ channel }) {
     }
   };
 
+  const handleDelete = async (campaign) => {
+    const confirmed = window.confirm(
+      `Delete campaign "${campaign.name}"? This action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setBusy(true);
+
+    try {
+      await campaignApi.remove(campaign._id);
+
+      if (String(campaignId) === String(campaign._id)) {
+        setCampaignId("");
+        setPage(1);
+      }
+
+      await refreshAll();
+    } catch (error) {
+      window.alert(
+        error?.response?.data?.message ||
+          "Unable to delete campaign. Please try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /* ---------------- derived ---------------- */
   const s = stats || {
     total: 0,
@@ -347,6 +375,7 @@ export default function OutreachPage({ channel }) {
                   setPage(1);
                 }}
                 onAction={handleAction}
+                onDelete={handleDelete}
               />
             ))}
           </div>
