@@ -1,4 +1,5 @@
 // import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// import { createPortal } from "react-dom";
 // import { Link, useNavigate } from "react-router-dom";
 // import {
 //   AlertCircle,
@@ -171,6 +172,12 @@
 //   const [audiencesLoading, setAudiencesLoading] = useState(false);
 //   const [audiencesError, setAudiencesError] = useState("");
 //   const [selectedAudienceId, setSelectedAudienceId] = useState("");
+//   const [audienceContacts, setAudienceContacts] = useState([]);
+//   const [audienceContactsTotal, setAudienceContactsTotal] = useState(0);
+//   const [audienceContactsPage, setAudienceContactsPage] = useState(1);
+//   const [audienceContactsPages, setAudienceContactsPages] = useState(1);
+//   const [audienceContactsLoading, setAudienceContactsLoading] = useState(false);
+//   const [audienceContactsError, setAudienceContactsError] = useState("");
 
 //   const [uploadFile, setUploadFile] = useState(null);
 //   const [uploadPreview, setUploadPreview] = useState(null);
@@ -304,6 +311,62 @@
 //       alive = false;
 //     };
 //   }, []);
+
+//   useEffect(() => {
+//     if (tab !== "audience" || !selectedAudienceId) {
+//       setAudienceContacts([]);
+//       setAudienceContactsTotal(0);
+//       setAudienceContactsPages(1);
+//       setAudienceContactsError("");
+//       setAudienceContactsLoading(false);
+//       return undefined;
+//     }
+
+//     let alive = true;
+//     setAudienceContacts([]);
+//     setAudienceContactsTotal(0);
+//     setAudienceContactsPages(1);
+//     setAudienceContactsError("");
+//     setAudienceContactsLoading(true);
+
+//     audienceApi
+//       .contacts(selectedAudienceId, { page: audienceContactsPage, limit: 100 })
+//       .then((response) => {
+//         if (!alive) return;
+//         const payload = getPayload(response);
+//         const contacts = Array.isArray(payload.contacts)
+//           ? payload.contacts
+//           : [];
+//         const pagination = payload.pagination || {};
+//         const total = Number(
+//           payload.total ?? pagination.total ?? contacts.length,
+//         );
+//         setAudienceContacts(contacts);
+//         setAudienceContactsTotal(total);
+//         setAudienceContactsPages(
+//           Math.max(
+//             1,
+//             Number(pagination.totalPages ?? Math.ceil(total / 100) ?? 1),
+//           ),
+//         );
+//       })
+//       .catch((error) => {
+//         if (!alive) return;
+//         setAudienceContactsError(
+//           errorMessage(
+//             error,
+//             "Selected audience ke contact numbers load nahi ho paaye.",
+//           ),
+//         );
+//       })
+//       .finally(() => {
+//         if (alive) setAudienceContactsLoading(false);
+//       });
+
+//     return () => {
+//       alive = false;
+//     };
+//   }, [tab, selectedAudienceId, audienceContactsPage]);
 
 //   useEffect(() => {
 //     let alive = true;
@@ -725,17 +788,36 @@
 //     tab === "audience" ? hasAudienceCount : activeSelectedCount;
 //   const templateBodyPreview = templateBody(selectedTemplate);
 //   const filteredAudienceList = audiences;
+//   const waitingForRecipientCheck = tab !== "upload" && previewLoading;
 //   const startDisabled =
 //     launching ||
 //     !campaignName.trim() ||
 //     !selectedTemplate ||
 //     activeSelectedCount < 1 ||
 //     effectiveCount < 1 ||
-//     !optInConfirmed;
+//     !optInConfirmed ||
+//     waitingForRecipientCheck;
+//   const startDisabledReason = launching
+//     ? "Campaign start ho rahi hai…"
+//     : !campaignName.trim()
+//       ? "Campaign name likhein."
+//       : !selectedTemplate
+//         ? "Start karne se pehle approved Meta template select karein."
+//         : activeSelectedCount < 1
+//           ? "Pehle contacts ya saved audience select karein."
+//           : waitingForRecipientCheck
+//             ? "Selected contacts verify ho rahe hain…"
+//             : effectiveCount < 1
+//               ? skipAlreadySent
+//                 ? "Koi eligible contact nahi bacha. 'Pehle message nahi bheja' filter uncheck karke preview check karein."
+//                 : "Selected audience mein bhejne layak WhatsApp number nahi mila."
+//               : !optInConfirmed
+//                 ? "Start karne ke liye WhatsApp opt-in confirmation tick karein."
+//                 : "";
 
-//   return (
+//   return createPortal(
 //     <div
-//       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-2 backdrop-blur-[1px] sm:p-5"
+//       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px] sm:p-6 lg:p-8"
 //       onMouseDown={(event) => {
 //         if (event.target === event.currentTarget && !launching) close();
 //       }}
@@ -744,7 +826,7 @@
 //         role="dialog"
 //         aria-modal="true"
 //         aria-labelledby="whatsapp-campaign-title"
-//         className="flex max-h-[calc(100dvh-16px)] w-full max-w-[1010px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-40px)]"
+//         className="flex max-h-[calc(100dvh-48px)] w-full max-w-[1240px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-64px)]"
 //       >
 //         <header className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
 //           <div className="flex min-w-0 items-center gap-3">
@@ -966,17 +1048,6 @@
 //                         </button>
 //                       )}
 //                     </div>
-//                     <label className="mt-2 flex cursor-pointer items-center justify-end gap-2 text-[11px] text-slate-600">
-//                       <input
-//                         type="checkbox"
-//                         checked={skipAlreadySent}
-//                         onChange={(event) =>
-//                           setSkipAlreadySent(event.target.checked)
-//                         }
-//                         className="h-3.5 w-3.5 accent-emerald-600"
-//                       />
-//                       Sirf jinhe abhi tak nahi bheja
-//                     </label>
 //                   </div>
 
 //                   <div className="overflow-hidden rounded-xl border border-slate-200">
@@ -1178,10 +1249,12 @@
 //                           key={id}
 //                           onClick={() => {
 //                             setSelectedAudienceId(id);
+//                             setAudienceContactsPage(1);
 //                             setSelectedLeadIds([]);
 //                             setSelectedUploadKeys([]);
 //                             setRecipientPreview(null);
 //                             setActionError("");
+//                             setNotice("");
 //                           }}
 //                           className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${active ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-100" : "border-slate-200 bg-white hover:border-emerald-300"}`}
 //                         >
@@ -1211,6 +1284,144 @@
 //                         </button>
 //                       );
 //                     })}
+//                   {selectedAudience && (
+//                     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+//                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-3">
+//                         <div className="min-w-0">
+//                           <h4 className="text-sm font-extrabold text-slate-800">
+//                             Selected audience contacts
+//                           </h4>
+//                           <p className="mt-0.5 truncate text-[11px] text-slate-500">
+//                             {selectedAudience.name || "Selected audience"} ·{" "}
+//                             {count(audienceContactsTotal)} contacts
+//                           </p>
+//                         </div>
+//                         {audienceContactsTotal > audienceContacts.length &&
+//                           !audienceContactsLoading && (
+//                             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+//                               Showing {count(audienceContacts.length)} of{" "}
+//                               {count(audienceContactsTotal)}
+//                             </span>
+//                           )}
+//                       </div>
+//                       {audienceContactsLoading ? (
+//                         <div className="flex items-center justify-center gap-2 px-3 py-7 text-sm text-slate-500">
+//                           <Loader2 size={16} className="animate-spin" /> Contact
+//                           numbers load ho rahe hain…
+//                         </div>
+//                       ) : audienceContactsError ? (
+//                         <div
+//                           role="alert"
+//                           className="px-3 py-4 text-xs text-red-600"
+//                         >
+//                           {audienceContactsError}
+//                         </div>
+//                       ) : audienceContacts.length === 0 ? (
+//                         <div className="px-3 py-5 text-xs text-slate-500">
+//                           Is audience mein dikhane ke liye saved contacts nahi
+//                           mile.
+//                         </div>
+//                       ) : (
+//                         <div className="max-h-[250px] overflow-auto">
+//                           <table className="w-full min-w-[470px] text-left text-xs">
+//                             <thead className="sticky top-0 z-10 bg-slate-100 text-slate-500">
+//                               <tr>
+//                                 <th className="w-10 px-3 py-2.5">Sr.</th>
+//                                 <th className="px-3 py-2.5">Name</th>
+//                                 <th className="px-3 py-2.5">WhatsApp number</th>
+//                                 <th className="px-3 py-2.5">Email</th>
+//                               </tr>
+//                             </thead>
+//                             <tbody>
+//                               {audienceContacts.map((contact, index) => (
+//                                 <tr
+//                                   key={
+//                                     contact._id ||
+//                                     contact.id ||
+//                                     `${contact.phone}-${index}`
+//                                   }
+//                                   className="border-t border-slate-100"
+//                                 >
+//                                   <td className="px-3 py-2.5 text-slate-500">
+//                                     {(audienceContactsPage - 1) * 100 +
+//                                       index +
+//                                       1}
+//                                   </td>
+//                                   <td
+//                                     className="max-w-[150px] truncate px-3 py-2.5 font-semibold text-slate-800"
+//                                     title={contact.name || ""}
+//                                   >
+//                                     {contact.name || "—"}
+//                                   </td>
+//                                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
+//                                     {contact.phone ||
+//                                       contact.mobile ||
+//                                       contact.whatsappNumber || (
+//                                         <span className="text-slate-400">
+//                                           No phone
+//                                         </span>
+//                                       )}
+//                                   </td>
+//                                   <td
+//                                     className="max-w-[140px] truncate px-3 py-2.5 text-slate-500"
+//                                     title={contact.email || ""}
+//                                   >
+//                                     {contact.email || "—"}
+//                                   </td>
+//                                 </tr>
+//                               ))}
+//                             </tbody>
+//                           </table>
+//                         </div>
+//                       )}
+//                       {audienceContactsPages > 1 && (
+//                         <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+//                           <span>
+//                             Page {audienceContactsPage} /{" "}
+//                             {audienceContactsPages}
+//                           </span>
+//                           <div className="flex items-center gap-2">
+//                             <button
+//                               type="button"
+//                               disabled={
+//                                 audienceContactsPage <= 1 ||
+//                                 audienceContactsLoading
+//                               }
+//                               onClick={() =>
+//                                 setAudienceContactsPage((page) =>
+//                                   Math.max(1, page - 1),
+//                                 )
+//                               }
+//                               className="rounded-md border border-slate-200 p-1.5 disabled:opacity-30"
+//                               aria-label="Previous audience contacts page"
+//                             >
+//                               <ChevronLeft size={13} />
+//                             </button>
+//                             <button
+//                               type="button"
+//                               disabled={
+//                                 audienceContactsPage >= audienceContactsPages ||
+//                                 audienceContactsLoading
+//                               }
+//                               onClick={() =>
+//                                 setAudienceContactsPage((page) =>
+//                                   Math.min(audienceContactsPages, page + 1),
+//                                 )
+//                               }
+//                               className="rounded-md border border-slate-200 p-1.5 disabled:opacity-30"
+//                               aria-label="Next audience contacts page"
+//                             >
+//                               <ChevronRight size={13} />
+//                             </button>
+//                           </div>
+//                         </div>
+//                       )}
+//                       <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-400">
+//                         Ye preview list hai; contact table par click karne se
+//                         audience membership nahi badlegi.
+//                       </p>
+//                     </section>
+//                   )}
 //                 </div>
 //               )}
 
@@ -1466,6 +1677,20 @@
 //                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
 //                   <input
 //                     type="checkbox"
+//                     checked={skipAlreadySent}
+//                     onChange={(event) =>
+//                       setSkipAlreadySent(event.target.checked)
+//                     }
+//                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
+//                   />
+//                   <span>
+//                     Sirf un contacts ko bhejein jinhe is channel par pehle
+//                     message nahi bheja gaya.
+//                   </span>
+//                 </label>
+//                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
+//                   <input
+//                     type="checkbox"
 //                     checked={optInConfirmed}
 //                     onChange={(event) =>
 //                       setOptInConfirmed(event.target.checked)
@@ -1502,10 +1727,17 @@
 //         </div>
 
 //         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
-//           <p className="text-[11px] text-slate-500">
-//             <b className="text-slate-700">{count(footerCount)} contacts</b> ·
-//             message tabhi jayega jab aap Start campaign dabayenge.
-//           </p>
+//           <div className="min-w-0 flex-1">
+//             <p className="text-[11px] text-slate-500">
+//               <b className="text-slate-700">{count(footerCount)} contacts</b> ·
+//               message tabhi jayega jab aap Start campaign dabayenge.
+//             </p>
+//             {startDisabled && startDisabledReason && (
+//               <p className="mt-1 max-w-[580px] text-[11px] font-semibold text-amber-700">
+//                 {startDisabledReason}
+//               </p>
+//             )}
+//           </div>
 //           <div className="ml-auto flex items-center gap-2">
 //             <button
 //               type="button"
@@ -1531,7 +1763,8 @@
 //           </div>
 //         </footer>
 //       </section>
-//     </div>
+//     </div>,
+//     document.body,
 //   );
 // }
 
@@ -1728,7 +1961,7 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [metaError, setMetaError] = useState("");
-  const [skipAlreadySent, setSkipAlreadySent] = useState(true);
+  const [skipAlreadySent, setSkipAlreadySent] = useState(false);
   const [optInConfirmed, setOptInConfirmed] = useState(false);
   const [recipientPreview, setRecipientPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -3221,8 +3454,8 @@ export default function WhatsAppCampaignWizard({ onClose, onCampaignStarted }) {
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600"
                   />
                   <span>
-                    Sirf un contacts ko bhejein jinhe is channel par pehle
-                    message nahi bheja gaya.
+                    Pehle message paa chuke contacts ko skip karein (repeat
+                    message nahi bhejna).
                   </span>
                 </label>
                 <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-slate-600">
