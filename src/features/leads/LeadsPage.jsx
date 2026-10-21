@@ -366,7 +366,7 @@ const QUALIFIED_HEADINGS = [
   "WhatsApp send",
   "WhatsApp reply",
   "Email send",
-  "Email reply",
+  // "Email reply",
   "Last response",
   "Score",
   "Actions",
