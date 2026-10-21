@@ -1,11 +1,14 @@
-// import { Pause, Play, Ban, RotateCcw, CalendarClock } from 'lucide-react';
-// import { fmtDateTime } from './StatusChip.jsx';
+// import { Pause, Play, Ban, RotateCcw, CalendarClock } from "lucide-react";
+// import { fmtDateTime } from "./StatusChip.jsx";
 
 // const STATUS_STYLE = {
-//   active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-//   paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-//   completed: 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200',
-//   cancelled: 'bg-ink-100 text-ink-500 dark:bg-ink-800 dark:text-ink-400',
+//   active:
+//     "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+//   paused:
+//     "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+//   completed:
+//     "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200",
+//   cancelled: "bg-ink-100 text-ink-500 dark:bg-ink-800 dark:text-ink-400",
 // };
 
 // function ChannelBar({ label, s, color }) {
@@ -22,46 +25,81 @@
 //         </span>
 //       </div>
 //       <div className="flex h-2 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
-//         <div className={`${color} transition-all duration-500`} style={{ width: `${sentPct}%` }} />
-//         <div className="bg-red-500 transition-all duration-500" style={{ width: `${failPct}%` }} />
+//         <div
+//           className={`${color} transition-all duration-500`}
+//           style={{ width: `${sentPct}%` }}
+//         />
+//         <div
+//           className="bg-red-500 transition-all duration-500"
+//           style={{ width: `${failPct}%` }}
+//         />
 //       </div>
 //     </div>
 //   );
 // }
 
 // /** channel = jis outreach page par card dikh raha hai; doosra channel bhi chhota dikhta hai */
-// export default function CampaignCard({ campaign, channel, selected, onSelect, onAction, busy }) {
+// export default function CampaignCard({
+//   campaign,
+//   channel,
+//   selected,
+//   onSelect,
+//   onAction,
+//   busy,
+// }) {
 //   const c = campaign;
 //   const wa = c.stats.whatsapp;
 //   const em = c.stats.email;
-//   const failed = (c.channels.whatsapp ? wa.failed : 0) + (c.channels.email ? em.failed : 0);
-//   const canPause = c.status === 'active';
-//   const canResume = c.status === 'paused';
-//   const canCancel = c.status === 'active' || c.status === 'paused';
+//   const failed =
+//     (c.channels.whatsapp ? wa.failed : 0) + (c.channels.email ? em.failed : 0);
+//   const canPause = c.status === "active";
+//   const canResume = c.status === "paused";
+//   const canCancel = c.status === "active" || c.status === "paused";
 
 //   return (
 //     <div
-//       className={`rounded-xl border p-4 transition ${
+//       onClick={onSelect}
+//       role="button"
+//       tabIndex={0}
+//       onKeyDown={(event) => {
+//         if (event.key === "Enter" || event.key === " ") {
+//           event.preventDefault();
+//           onSelect();
+//         }
+//       }}
+//       className={`cursor-pointer rounded-xl border p-4 transition ${
 //         selected
-//           ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30'
-//           : 'border-ink-100 bg-white dark:border-ink-800 dark:bg-ink-900'
+//           ? "border-brand-500 bg-brand-50/50 dark:bg-brand-950/30"
+//           : "border-ink-100 bg-white dark:border-ink-800 dark:bg-ink-900"
 //       }`}
 //     >
 //       <div className="flex flex-wrap items-start justify-between gap-2">
-//         <button onClick={onSelect} className="text-left">
-//           <p className="font-display font-semibold text-ink-900 dark:text-white">{c.name}</p>
+//         <button
+//           onClick={(event) => {
+//             event.stopPropagation();
+//             onSelect();
+//           }}
+//           className="text-left"
+//         >
+//           <p className="font-display font-semibold text-ink-900 dark:text-white">
+//             {c.name}
+//           </p>
 //           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500 dark:text-ink-400">
 //             <span>{c.totalLeads} leads</span>
 //             <span className="inline-flex items-center gap-1">
 //               <CalendarClock size={12} />
 //               {c.dailyLimit > 0
-//                 ? `${c.dailyLimit}/day at ${c.sendTime} · ${c.totalDays} day${c.totalDays > 1 ? 's' : ''}`
-//                 : 'All at once'}
+//                 ? `${c.dailyLimit}/day at ${c.sendTime} · ${c.totalDays} day${c.totalDays > 1 ? "s" : ""}`
+//                 : "All at once"}
 //             </span>
-//             {c.lastRunAt && c.dailyLimit > 0 && <span>last batch {fmtDateTime(c.lastRunAt)}</span>}
+//             {c.lastRunAt && c.dailyLimit > 0 && (
+//               <span>last batch {fmtDateTime(c.lastRunAt)}</span>
+//             )}
 //           </p>
 //         </button>
-//         <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STATUS_STYLE[c.status]}`}>
+//         <span
+//           className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STATUS_STYLE[c.status]}`}
+//         >
 //           {c.status}
 //         </span>
 //       </div>
@@ -70,32 +108,63 @@
 //         {c.channels.whatsapp && (
 //           <ChannelBar label="WhatsApp" s={wa} color="bg-green-500" />
 //         )}
-//         {c.channels.email && <ChannelBar label="Email" s={em} color="bg-brand-500" />}
+//         {c.channels.email && (
+//           <ChannelBar label="Email" s={em} color="bg-brand-500" />
+//         )}
 //         {c.channels.email && c.leadsWithoutEmail > 0 && (
 //           <p className="text-xs text-ink-500 dark:text-ink-400">
-//             {c.leadsWithoutEmail} lead(s) ke paas email nahi tha — unhe sirf WhatsApp gaya.
+//             {c.leadsWithoutEmail} lead(s) ke paas email nahi tha — unhe sirf
+//             WhatsApp gaya.
 //           </p>
 //         )}
 //       </div>
 
 //       <div className="mt-3 flex flex-wrap gap-2">
 //         {canPause && (
-//           <button disabled={busy} onClick={() => onAction('pause', c)} className="btn-secondary !px-3 !py-1.5 !text-xs">
+//           <button
+//             disabled={busy}
+//             onClick={(event) => {
+//               event.stopPropagation();
+//               onAction("pause", c);
+//             }}
+//             className="btn-secondary !px-3 !py-1.5 !text-xs"
+//           >
 //             <Pause size={13} className="mr-1.5" /> Pause
 //           </button>
 //         )}
 //         {canResume && (
-//           <button disabled={busy} onClick={() => onAction('resume', c)} className="btn-secondary !px-3 !py-1.5 !text-xs">
+//           <button
+//             disabled={busy}
+//             onClick={(event) => {
+//               event.stopPropagation();
+//               onAction("resume", c);
+//             }}
+//             className="btn-secondary !px-3 !py-1.5 !text-xs"
+//           >
 //             <Play size={13} className="mr-1.5" /> Resume
 //           </button>
 //         )}
 //         {failed > 0 && (
-//           <button disabled={busy} onClick={() => onAction('retry', c, channel)} className="btn-secondary !px-3 !py-1.5 !text-xs">
+//           <button
+//             disabled={busy}
+//             onClick={(event) => {
+//               event.stopPropagation();
+//               onAction("retry", c, channel);
+//             }}
+//             className="btn-secondary !px-3 !py-1.5 !text-xs"
+//           >
 //             <RotateCcw size={13} className="mr-1.5" /> Retry {failed} failed
 //           </button>
 //         )}
 //         {canCancel && (
-//           <button disabled={busy} onClick={() => onAction('cancel', c)} className="btn-secondary !px-3 !py-1.5 !text-xs !text-red-600">
+//           <button
+//             disabled={busy}
+//             onClick={(event) => {
+//               event.stopPropagation();
+//               onAction("cancel", c);
+//             }}
+//             className="btn-secondary !px-3 !py-1.5 !text-xs !text-red-600"
+//           >
 //             <Ban size={13} className="mr-1.5" /> Cancel
 //           </button>
 //         )}
@@ -104,7 +173,14 @@
 //   );
 // }
 
-import { Pause, Play, Ban, RotateCcw, CalendarClock } from "lucide-react";
+import {
+  Pause,
+  Play,
+  Ban,
+  RotateCcw,
+  CalendarClock,
+  Trash2,
+} from "lucide-react";
 import { fmtDateTime } from "./StatusChip.jsx";
 
 const STATUS_STYLE = {
@@ -151,6 +227,7 @@ export default function CampaignCard({
   selected,
   onSelect,
   onAction,
+  onDelete,
   busy,
 }) {
   const c = campaign;
@@ -173,7 +250,7 @@ export default function CampaignCard({
           onSelect();
         }
       }}
-      className={`cursor-pointer rounded-xl border p-4 transition ${
+      className={`cursor-pointer rounded-xl border p-3 transition ${
         selected
           ? "border-brand-500 bg-brand-50/50 dark:bg-brand-950/30"
           : "border-ink-100 bg-white dark:border-ink-800 dark:bg-ink-900"
@@ -187,7 +264,10 @@ export default function CampaignCard({
           }}
           className="text-left"
         >
-          <p className="font-display font-semibold text-ink-900 dark:text-white">
+          <p
+            className="max-w-[220px] truncate font-display text-sm font-semibold text-ink-900 dark:text-white"
+            title={c.name}
+          >
             {c.name}
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500 dark:text-ink-400">
@@ -210,7 +290,7 @@ export default function CampaignCard({
         </span>
       </div>
 
-      <div className="mt-3 space-y-2.5">
+      <div className="mt-2 space-y-2">
         {c.channels.whatsapp && (
           <ChannelBar label="WhatsApp" s={wa} color="bg-green-500" />
         )}
@@ -225,7 +305,7 @@ export default function CampaignCard({
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {canPause && (
           <button
             disabled={busy}
@@ -233,7 +313,7 @@ export default function CampaignCard({
               event.stopPropagation();
               onAction("pause", c);
             }}
-            className="btn-secondary !px-3 !py-1.5 !text-xs"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
           >
             <Pause size={13} className="mr-1.5" /> Pause
           </button>
@@ -245,7 +325,7 @@ export default function CampaignCard({
               event.stopPropagation();
               onAction("resume", c);
             }}
-            className="btn-secondary !px-3 !py-1.5 !text-xs"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
           >
             <Play size={13} className="mr-1.5" /> Resume
           </button>
@@ -257,7 +337,7 @@ export default function CampaignCard({
               event.stopPropagation();
               onAction("retry", c, channel);
             }}
-            className="btn-secondary !px-3 !py-1.5 !text-xs"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
           >
             <RotateCcw size={13} className="mr-1.5" /> Retry {failed} failed
           </button>
@@ -269,11 +349,23 @@ export default function CampaignCard({
               event.stopPropagation();
               onAction("cancel", c);
             }}
-            className="btn-secondary !px-3 !py-1.5 !text-xs !text-red-600"
+            className="btn-secondary !px-2.5 !py-1 !text-xs !text-red-600"
           >
-            <Ban size={13} className="mr-1.5" /> Cancel
+            <Ban size={13} className="mr-1" /> Cancel
           </button>
         )}
+        <button
+          type="button"
+          disabled={busy}
+          title="Delete campaign"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete?.(c);
+          }}
+          className="btn-secondary !px-2.5 !py-1 !text-xs !text-red-600"
+        >
+          <Trash2 size={13} className="mr-1" /> Delete
+        </button>
       </div>
     </div>
   );
