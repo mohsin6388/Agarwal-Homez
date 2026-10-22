@@ -1,68 +1,130 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSocket } from '../lib/socket.js';
-import { outreachApi } from '../api/outreachApi.js';
+import { useEffect, useRef, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSocket } from "../lib/socket.js";
+import { outreachApi } from "../api/outreachApi.js";
 
-export const SUMMARY_KEY = ['outreach', 'summary'];
+export const SUMMARY_KEY = ["outreach", "summary"];
 
-/**
- * Backend worker ke realtime events sunta hai:
- *   outreach:job       -> ek lead ka status badla (processing -> sent/failed)
- *   outreach:progress  -> campaign ke channel-wise counts
- *   outreach:campaign  -> campaign pause/resume/cancel/complete/launch
- * Handlers ref mein rakhe hain, isliye har render par re-subscribe nahi hota.
- */
-export function useOutreachEvents({ onJob, onProgress, onCampaign, onReconnect }) {
+export function useOutreachEvents({
+  onJob,
+  onProgress,
+  onCampaign,
+  onReconnect,
+}) {
   const handlers = useRef({});
-  handlers.current = { onJob, onProgress, onCampaign, onReconnect };
+
+  handlers.current = {
+    onJob,
+    onProgress,
+    onCampaign,
+    onReconnect,
+  };
 
   useEffect(() => {
     const socket = getSocket();
-    const job = (p) => handlers.current.onJob?.(p);
-    const progress = (p) => handlers.current.onProgress?.(p);
-    const campaign = (p) => handlers.current.onCampaign?.(p);
+
+    const job = (payload) => handlers.current.onJob?.(payload);
+    const progress = (payload) => handlers.current.onProgress?.(payload);
+    const campaign = (payload) => handlers.current.onCampaign?.(payload);
     const reconnect = () => handlers.current.onReconnect?.();
 
-    socket.on('outreach:job', job);
-    socket.on('outreach:progress', progress);
-    socket.on('outreach:campaign', campaign);
-    socket.io.on('reconnect', reconnect);
+    socket.on("outreach:job", job);
+    socket.on("outreach:progress", progress);
+    socket.on("outreach:campaign", campaign);
+    socket.io.on("reconnect", reconnect);
+
     return () => {
-      socket.off('outreach:job', job);
-      socket.off('outreach:progress', progress);
-      socket.off('outreach:campaign', campaign);
-      socket.io.off('reconnect', reconnect);
+      socket.off("outreach:job", job);
+      socket.off("outreach:progress", progress);
+      socket.off("outreach:campaign", campaign);
+      socket.io.off("reconnect", reconnect);
     };
   }, []);
 }
 
-/** Plain query (page ke andar). Live refresh DashboardLayout wala hook karta hai. */
+/**
+ * Supports both:
+ * 1. Raw Axios response: { data: { success, data: {...} } }
+ * 2. Already-unwrapped response body: { success, data: {...} }
+ * 3. Direct summary object: { email: {...}, whatsapp: {...} }
+ */
+function extractSummary(response) {
+  const body = response?.data ?? response;
+
+  const payload =
+    body?.data && typeof body.data === "object" ? body.data : body;
+
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    (!payload.email && !payload.whatsapp)
+  ) {
+    console.error("[Outreach] Unexpected summary response:", response);
+
+    throw new Error(
+      "Outreach summary ka response format sahi nahi hai. Console check karein.",
+    );
+  }
+
+  return payload;
+}
+
 export function useOutreachSummaryQuery() {
   return useQuery({
     queryKey: SUMMARY_KEY,
-    queryFn: () => outreachApi.summary().then((r) => r.data.data),
-    staleTime: 10_000,
+
+    queryFn: async () => {
+      const response = await outreachApi.summary();
+      const payload = extractSummary(response);
+
+      if (import.meta.env.DEV) {
+        console.debug("[Outreach] Summary API response:", response);
+        console.debug("[Outreach] Parsed summary:", payload);
+      }
+
+      return payload;
+    },
+
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    retry: 1,
   });
 }
 
 /**
- * Sidebar ke liye: summary + socket events par (throttled) refetch.
- * Sirf DashboardLayout mein ek baar use karo.
+ * Sidebar ke liye live summary refresh.
+ * DashboardLayout mein ek hi baar use karein.
  */
 export function useOutreachSummaryLive() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const timer = useRef(null);
 
   const refresh = useCallback(() => {
-    if (timer.current) return; // 1.5s mein ek hi refetch, har message par nahi
+    if (timer.current) return;
+
     timer.current = setTimeout(() => {
       timer.current = null;
-      qc.invalidateQueries({ queryKey: SUMMARY_KEY });
+      queryClient.invalidateQueries({
+        queryKey: SUMMARY_KEY,
+      });
     }, 1500);
-  }, [qc]);
+  }, [queryClient]);
 
-  useOutreachEvents({ onJob: refresh, onCampaign: refresh, onReconnect: refresh });
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useOutreachEvents({
+    onJob: refresh,
+    onCampaign: refresh,
+    onReconnect: refresh,
+  });
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+    };
+  }, []);
 
   return useOutreachSummaryQuery();
 }

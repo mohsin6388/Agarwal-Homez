@@ -30,13 +30,13 @@ const CHANNEL_META = {
     subtitle:
       "Approved Meta templates ke saath queued sending aur live progress.",
     icon: MessageCircle,
-    contact: (j) => j.phone,
+    contact: (job) => job.phone || "—",
   },
   email: {
     title: "Bulk Email",
     subtitle: "Brevo API se queued email campaigns aur live delivery status.",
     icon: Mail,
-    contact: (j) => j.email || "—",
+    contact: (job) => job.email || "—",
   },
 };
 
@@ -58,6 +58,7 @@ function StatCard({ icon: Icon, label, value, tone, hint }) {
         >
           <Icon size={18} />
         </span>
+
         <div>
           <p className="text-xs text-ink-500 dark:text-ink-400">{label}</p>
           <p className="font-display text-xl font-bold text-ink-900 dark:text-white">
@@ -65,6 +66,7 @@ function StatCard({ icon: Icon, label, value, tone, hint }) {
           </p>
         </div>
       </div>
+
       {hint && (
         <p className="mt-2 text-xs text-ink-500 dark:text-ink-400">{hint}</p>
       )}
@@ -72,46 +74,92 @@ function StatCard({ icon: Icon, label, value, tone, hint }) {
   );
 }
 
+function normalizeStats(stats) {
+  if (!stats || typeof stats !== "object") return null;
+
+  return {
+    total: Number(stats.total) || 0,
+    sent: Number(stats.sent) || 0,
+    failed: Number(stats.failed) || 0,
+    pending: Number(stats.pending) || 0,
+    processing: Number(stats.processing) || 0,
+    paused: Number(stats.paused) || 0,
+    scheduled: Number(stats.scheduled) || 0,
+    cancelled: Number(stats.cancelled) || 0,
+    nextRunAt: stats.nextRunAt || null,
+  };
+}
+
 export default function OutreachPage({ channel }) {
   const meta = CHANNEL_META[channel];
-  const Icon = meta.icon;
+  const Icon = meta?.icon || Mail;
   const qc = useQueryClient();
 
   const [filter, setFilter] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [page, setPage] = useState(1);
-  const [nowSending, setNowSending] = useState(null); // { jobId, name, contact }
+  const [nowSending, setNowSending] = useState(null);
   const [busy, setBusy] = useState(false);
-  // Templates → "Use in bulk" opens the launcher with that template picked.
+
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTemplate = searchParams.get("template") || "";
+
   const [launchOpen, setLaunchOpen] = useState(
     () => Boolean(initialTemplate) || searchParams.get("new") === "1",
   );
+
   const closeLauncher = () => {
     setLaunchOpen(false);
-    if (searchParams.get("template") || searchParams.get("new"))
+
+    if (searchParams.get("template") || searchParams.get("new")) {
       setSearchParams({}, { replace: true });
+    }
   };
 
-  /* ---------------- data ---------------- */
-  const { data: summaryAll } = useOutreachSummaryQuery();
-  const stats = summaryAll?.[channel];
+  /* ---------------- summary ---------------- */
 
-  const { data: campaignsData } = useQuery({
+  const {
+    data: summaryAll,
+    isLoading: summaryLoading,
+    isFetching: summaryFetching,
+    error: summaryError,
+  } = useOutreachSummaryQuery();
+
+  const rawStats = summaryAll?.[channel];
+  const stats = normalizeStats(rawStats);
+
+  const s = stats || {
+    total: 0,
+    sent: 0,
+    failed: 0,
+    pending: 0,
+    processing: 0,
+    paused: 0,
+    scheduled: 0,
+    cancelled: 0,
+    nextRunAt: null,
+  };
+
+  /* ---------------- campaigns ---------------- */
+
+  const { data: campaignsData, isLoading: campaignsLoading } = useQuery({
     queryKey: CAMPAIGNS_KEY,
     queryFn: () => campaignApi.list(),
     staleTime: 10_000,
   });
+
   const campaigns = useMemo(
     () =>
       (campaignsData?.data?.campaigns || []).filter(
-        (c) => c.channels?.[channel],
+        (campaign) => campaign.channels?.[channel],
       ),
     [campaignsData, channel],
   );
 
+  /* ---------------- jobs ---------------- */
+
   const jobsKey = ["outreach", "jobs", channel, campaignId, filter, page];
+
   const {
     data: jobsData,
     isLoading,
@@ -126,56 +174,90 @@ export default function OutreachPage({ channel }) {
         ...(campaignId ? { campaignId } : {}),
         ...(filter ? { status: filter } : {}),
       }),
-    placeholderData: (prev) => prev,
+    placeholderData: (previousData) => previousData,
     staleTime: 0,
     refetchOnMount: "always",
   });
+
   const jobs = jobsData?.data?.jobs || [];
   const pagination = jobsData?.data?.pagination;
 
-  /* ---------------- live events ---------------- */
+  /* ---------------- refresh helpers ---------------- */
+
   const refreshAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: CAMPAIGNS_KEY });
     qc.invalidateQueries({ queryKey: ["outreach", "jobs"] });
     qc.invalidateQueries({ queryKey: SUMMARY_KEY });
   }, [qc]);
 
-  useOutreachEvents({
-    onJob: (p) => {
-      if (p.channel !== channel) return;
+  /* ---------------- live events ---------------- */
 
-      // "Ab ye lead bheji ja rahi hai" banner
-      if (p.status === "processing") {
+  useOutreachEvents({
+    onJob: (payload) => {
+      if (!payload || payload.channel !== channel) return;
+
+      if (payload.status === "processing") {
         setNowSending({
-          jobId: p.jobId,
-          name: p.name,
-          contact: channel === "email" ? p.email : p.phone,
+          jobId: payload.jobId,
+          name: payload.name,
+          contact: channel === "email" ? payload.email : payload.phone,
         });
       } else {
-        setNowSending((cur) => (cur?.jobId === p.jobId ? null : cur));
+        setNowSending((current) =>
+          String(current?.jobId) === String(payload.jobId) ? null : current,
+        );
       }
 
-      // Table ki wahi row jagah par update (refetch nahi, flicker nahi)
+      // Update cached job rows immediately.
       qc.setQueriesData({ queryKey: ["outreach", "jobs", channel] }, (old) => {
         if (!old?.data?.jobs) return old;
+
         return {
           ...old,
           data: {
             ...old.data,
-            jobs: old.data.jobs.map((j) =>
-              j.id === p.jobId
+            jobs: old.data.jobs.map((job) =>
+              String(job.id) === String(payload.jobId)
                 ? {
-                    ...j,
-                    status: p.status,
-                    attempts: p.attempts,
-                    sentAt: p.sentAt,
-                    nextRunAt: p.nextRunAt,
-                    lastError: p.lastError,
+                    ...job,
+                    status: payload.status ?? job.status,
+                    attempts: payload.attempts ?? job.attempts,
+                    sentAt: payload.sentAt ?? job.sentAt,
+                    nextRunAt: payload.nextRunAt ?? job.nextRunAt,
+                    lastError: payload.lastError ?? job.lastError,
                     scheduled:
-                      p.status === "pending" &&
-                      new Date(p.nextRunAt) > new Date(),
+                      payload.status === "pending" && payload.nextRunAt
+                        ? new Date(payload.nextRunAt) > new Date()
+                        : job.scheduled,
                   }
-                : j,
+                : job,
+            ),
+          },
+        };
+      });
+
+      // Server remains the source of truth for summary counts.
+      qc.invalidateQueries({ queryKey: SUMMARY_KEY });
+      qc.invalidateQueries({ queryKey: CAMPAIGNS_KEY });
+    },
+
+    onProgress: (payload) => {
+      if (!payload?.campaignId) {
+        qc.invalidateQueries({ queryKey: SUMMARY_KEY });
+        return;
+      }
+
+      qc.setQueryData(CAMPAIGNS_KEY, (old) => {
+        if (!old?.data?.campaigns) return old;
+
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            campaigns: old.data.campaigns.map((campaign) =>
+              String(campaign._id) === String(payload.campaignId)
+                ? { ...campaign, stats: payload.stats }
+                : campaign,
             ),
           },
         };
@@ -183,90 +265,102 @@ export default function OutreachPage({ channel }) {
 
       qc.invalidateQueries({ queryKey: SUMMARY_KEY });
     },
-    onProgress: (p) => {
-      qc.setQueryData(CAMPAIGNS_KEY, (old) => {
-        if (!old?.data?.campaigns) return old;
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            campaigns: old.data.campaigns.map((c) =>
-              String(c._id) === p.campaignId ? { ...c, stats: p.stats } : c,
-            ),
-          },
-        };
-      });
-    },
+
     onCampaign: refreshAll,
     onReconnect: refreshAll,
   });
 
-  /* ---------------- actions ---------------- */
-  const handleAction = async (action, campaign, ch) => {
+  /* ---------------- campaign actions ---------------- */
+
+  const handleAction = async (action, campaign, selectedChannel) => {
     if (
       action === "cancel" &&
-      !confirm(`Cancel "${campaign.name}"? Pending messages nahi jayenge.`)
-    )
+      !window.confirm(
+        `Cancel "${campaign.name}"? Pending messages nahi jayenge.`,
+      )
+    ) {
       return;
+    }
+
     if (
       action === "delete" &&
-      !confirm(
+      !window.confirm(
         `"${campaign.name}" campaign ko list se delete karna hai? Active campaign pehle cancel hogi. History permanently erase nahi hogi.`,
       )
-    )
+    ) {
       return;
+    }
+
     setBusy(true);
+
     try {
       const id = campaign._id;
+
       if (action === "pause") await campaignApi.pause(id);
       if (action === "resume") await campaignApi.resume(id);
       if (action === "cancel") await campaignApi.cancel(id);
-      if (action === "retry") await campaignApi.retryFailed(id, ch);
+
+      if (action === "retry") {
+        await campaignApi.retryFailed(id, selectedChannel);
+      }
+
       if (action === "delete") {
         await campaignApi.remove(id);
-        if (String(campaignId) === String(id)) setCampaignId("");
+
+        if (String(campaignId) === String(id)) {
+          setCampaignId("");
+          setPage(1);
+        }
       }
+
       refreshAll();
+    } catch (error) {
+      console.error("[Outreach] Campaign action failed:", error);
+
+      window.alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Campaign action failed.",
+      );
     } finally {
       setBusy(false);
     }
   };
 
-  /* ---------------- derived ---------------- */
-  const s = stats || {
-    total: 0,
-    sent: 0,
-    failed: 0,
-    pending: 0,
-    processing: 0,
-    paused: 0,
-    scheduled: 0,
-  };
+  /* ---------------- derived stats ---------------- */
+
   const queued = s.pending + s.paused;
   const pct = s.total ? Math.round((s.sent / s.total) * 100) : 0;
   const todayDue = s.pending - s.scheduled;
+
+  /* ---------------- render ---------------- */
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink-900 dark:text-white">
-            <Icon size={24} className="text-brand-600" /> {meta.title}
+            <Icon size={24} className="text-brand-600" />
+            {meta?.title || "Outreach"}
           </h1>
+
           <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-            {meta.subtitle}
+            {meta?.subtitle || "Campaign progress and delivery status."}
           </p>
         </div>
+
         <button
           type="button"
           onClick={() => setLaunchOpen(true)}
           className="btn-primary flex items-center gap-2"
         >
-          <Send size={16} /> Create bulk campaign
+          <Send size={16} />
+          Create bulk campaign
         </button>
       </div>
 
-      {/* Now sending banner */}
+      {/* Sending status banner */}
+
       <div
         className={`mt-5 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
           nowSending
@@ -278,7 +372,7 @@ export default function OutreachPage({ channel }) {
           <>
             <Loader2 size={18} className="animate-spin" />
             <span>
-              Sending to <b>{nowSending.name}</b>{" "}
+              Sending to <b>{nowSending.name || "lead"}</b>{" "}
               {nowSending.contact && (
                 <span className="opacity-70">({nowSending.contact})</span>
               )}
@@ -287,21 +381,45 @@ export default function OutreachPage({ channel }) {
           </>
         ) : s.processing > 0 ? (
           <>
-            <Loader2 size={18} className="animate-spin" /> Sending…
+            <Loader2 size={18} className="animate-spin" />
+            Sending…
           </>
-        ) : queued > 0 && summaryAll?.[channel]?.nextRunAt ? (
+        ) : queued > 0 && s.nextRunAt ? (
           <>
-            <Clock size={18} /> Idle — next batch{" "}
-            {fmtDateTime(summaryAll[channel].nextRunAt)}
+            <Clock size={18} />
+            Idle — next batch {fmtDateTime(s.nextRunAt)}
           </>
         ) : (
           <>
-            <CheckCircle2 size={18} /> Nothing is being sent right now
+            <CheckCircle2 size={18} />
+            Nothing is being sent right now
           </>
         )}
       </div>
 
-      {/* Stats */}
+      {/* Summary status */}
+
+      {summaryLoading && (
+        <p className="mt-3 text-sm text-ink-500" role="status">
+          Loading outreach summary…
+        </p>
+      )}
+
+      {summaryError && (
+        <p className="mt-3 text-sm text-red-600" role="alert">
+          Summary load nahi hui: {summaryError.message}
+        </p>
+      )}
+
+      {!summaryLoading && !summaryError && !rawStats && (
+        <p className="mt-3 text-sm text-amber-700" role="status">
+          API response mein "{channel}" summary nahi mili. Network tab mein
+          /api/outreach/summary ka response check karein.
+        </p>
+      )}
+
+      {/* Summary cards */}
+
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon={Send}
@@ -310,12 +428,14 @@ export default function OutreachPage({ channel }) {
           tone="bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300"
           hint={`${pct}% complete`}
         />
+
         <StatCard
           icon={CheckCircle2}
           label="Sent"
           value={s.sent}
           tone="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
         />
+
         <StatCard
           icon={Clock}
           label="Pending"
@@ -323,10 +443,13 @@ export default function OutreachPage({ channel }) {
           tone="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
           hint={
             s.scheduled
-              ? `${s.scheduled} scheduled for later days${todayDue > 0 ? `, ${todayDue} due now` : ""}`
+              ? `${s.scheduled} scheduled for later days${
+                  todayDue > 0 ? `, ${todayDue} due now` : ""
+                }`
               : undefined
           }
         />
+
         <StatCard
           icon={XCircle}
           label="Failed"
@@ -334,23 +457,39 @@ export default function OutreachPage({ channel }) {
           tone="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
         />
       </div>
+
+      {/* Progress bar */}
+
       <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
         <div
           className="bg-green-500 transition-all duration-500"
-          style={{ width: `${s.total ? (s.sent / s.total) * 100 : 0}%` }}
+          style={{
+            width: `${s.total ? (s.sent / s.total) * 100 : 0}%`,
+          }}
         />
+
         <div
           className="bg-red-500 transition-all duration-500"
-          style={{ width: `${s.total ? (s.failed / s.total) * 100 : 0}%` }}
+          style={{
+            width: `${s.total ? (s.failed / s.total) * 100 : 0}%`,
+          }}
         />
       </div>
 
+      {summaryFetching && !summaryLoading && (
+        <p className="mt-1 text-right text-xs text-ink-400">
+          Updating summary…
+        </p>
+      )}
+
       {/* Campaigns */}
+
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-white">
             Campaigns
           </h2>
+
           {campaignId && (
             <button
               type="button"
@@ -364,21 +503,33 @@ export default function OutreachPage({ channel }) {
             </button>
           )}
         </div>
-        {campaigns.length > 0 ? (
+
+        {campaignsLoading ? (
+          <div className="rounded-xl border border-ink-100 bg-white px-4 py-8 text-center text-sm text-ink-500 dark:border-ink-800 dark:bg-ink-900">
+            <Loader2 className="mx-auto animate-spin" />
+            Loading campaigns…
+          </div>
+        ) : campaigns.length > 0 ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {campaigns.map((c) => (
+            {campaigns.map((campaign) => (
               <CampaignCard
-                key={c._id}
-                campaign={c}
+                key={campaign._id}
+                campaign={campaign}
                 channel={channel}
-                selected={campaignId === c._id}
+                selected={String(campaignId) === String(campaign._id)}
                 busy={busy}
                 onSelect={() => {
-                  setCampaignId((cur) => (cur === c._id ? "" : c._id));
+                  setCampaignId((current) =>
+                    String(current) === String(campaign._id)
+                      ? ""
+                      : campaign._id,
+                  );
                   setPage(1);
                 }}
                 onAction={handleAction}
-                onDelete={(campaign) => handleAction("delete", campaign)}
+                onDelete={(selectedCampaign) =>
+                  handleAction("delete", selectedCampaign)
+                }
               />
             ))}
           </div>
@@ -390,7 +541,8 @@ export default function OutreachPage({ channel }) {
         )}
       </section>
 
-      {/* Lead-wise list */}
+      {/* Lead-wise jobs */}
+
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-white">
@@ -401,21 +553,23 @@ export default function OutreachPage({ channel }) {
               </span>
             )}
           </h2>
+
           <div className="flex flex-wrap gap-1.5">
-            {FILTERS.map((f) => (
+            {FILTERS.map((item) => (
               <button
-                key={f.value}
+                key={item.value}
+                type="button"
                 onClick={() => {
-                  setFilter(f.value);
+                  setFilter(item.value);
                   setPage(1);
                 }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  filter === f.value
+                  filter === item.value
                     ? "bg-brand-600 text-white"
                     : "bg-ink-100 text-ink-600 hover:bg-ink-200 dark:bg-ink-800 dark:text-ink-300 dark:hover:bg-ink-700"
                 }`}
               >
-                {f.label}
+                {item.label}
               </button>
             ))}
           </div>
@@ -433,6 +587,7 @@ export default function OutreachPage({ channel }) {
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
+
             <tbody>
               {isLoading && (
                 <tr>
@@ -444,6 +599,7 @@ export default function OutreachPage({ channel }) {
                   </td>
                 </tr>
               )}
+
               {!isLoading && jobs.length === 0 && (
                 <tr>
                   <td
@@ -456,35 +612,40 @@ export default function OutreachPage({ channel }) {
                   </td>
                 </tr>
               )}
-              {jobs.map((j) => (
+
+              {jobs.map((job) => (
                 <tr
-                  key={j.id}
+                  key={job.id}
                   className={`border-t border-ink-100 transition-colors dark:border-ink-800 ${
-                    j.status === "processing"
+                    job.status === "processing"
                       ? "bg-brand-50 dark:bg-brand-950/30"
                       : ""
                   }`}
                 >
                   <td className="px-4 py-3 font-medium text-ink-900 dark:text-white">
-                    {j.name}
+                    {job.name || "—"}
                   </td>
+
                   <td className="px-4 py-3 text-ink-600 dark:text-ink-300">
-                    {meta.contact(j)}
+                    {meta.contact(job)}
                   </td>
+
                   <td className="px-4 py-3 text-ink-500 dark:text-ink-400">
-                    {j.dayNumber ? `Day ${j.dayNumber}` : "—"}
+                    {job.dayNumber ? `Day ${job.dayNumber}` : "—"}
                   </td>
+
                   <td className="px-4 py-3">
-                    <StatusChip job={j} />
-                    {j.lastError &&
-                      (j.status === "failed" ||
-                        j.status === "paused" ||
-                        j.scheduled) && (
+                    <StatusChip job={job} />
+
+                    {job.lastError &&
+                      (job.status === "failed" ||
+                        job.status === "paused" ||
+                        job.scheduled) && (
                         <p
                           className="mt-1 max-w-xs truncate text-xs text-red-600 dark:text-red-400"
-                          title={j.lastError}
+                          title={job.lastError}
                         >
-                          {j.lastError}
+                          {job.lastError}
                         </p>
                       )}
                   </td>
@@ -500,18 +661,22 @@ export default function OutreachPage({ channel }) {
               Page {pagination.page} of {pagination.totalPages} ·{" "}
               {pagination.total} leads {isFetching && "· updating…"}
             </span>
+
             <div className="flex gap-2">
               <button
+                type="button"
                 className="btn-secondary !px-2.5 !py-1.5"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage((current) => current - 1)}
               >
                 <ChevronLeft size={16} />
               </button>
+
               <button
+                type="button"
                 className="btn-secondary !px-2.5 !py-1.5"
-                disabled={page >= pagination.totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                disabled={!pagination || page >= pagination.totalPages}
+                onClick={() => setPage((current) => current + 1)}
               >
                 <ChevronRight size={16} />
               </button>
@@ -519,6 +684,9 @@ export default function OutreachPage({ channel }) {
           </div>
         )}
       </section>
+
+      {/* Campaign launcher */}
+
       {launchOpen && (
         <CampaignLauncher
           key={channel}
