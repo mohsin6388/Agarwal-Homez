@@ -310,6 +310,15 @@ export default function CampaignCard({
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500 dark:text-ink-400">
             <span>{c.totalLeads} leads</span>
+            {c.lastRunAt && (
+              <span className="inline-flex items-center gap-1">
+                <CalendarClock size={12} />
+                {fmtDateTime(c.lastRunAt)}
+              </span>
+            )}
+          </p>
+          {/* <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500 dark:text-ink-400">
+            <span>{c.totalLeads} leads</span>
             <span className="inline-flex items-center gap-1">
               <CalendarClock size={12} />
               {c.dailyLimit > 0
@@ -319,7 +328,7 @@ export default function CampaignCard({
             {c.lastRunAt && c.dailyLimit > 0 && (
               <span>last batch {fmtDateTime(c.lastRunAt)}</span>
             )}
-          </p>
+          </p> */}
         </button>
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STATUS_STYLE[c.status]}`}
