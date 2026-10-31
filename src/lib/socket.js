@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { useAuthStore } from "../store/authStore.js";
 
-const SOCKET_URL = "https://agarwal-homez-backend.onrender.com";
+const SOCKET_URL = "https://api-agarwal-homez.reviewninjapro.com";
 
 let socket = null;
 
