@@ -302,10 +302,41 @@ export default function PropertiesPage() {
         </h1>
 
         <div className="flex flex-wrap gap-2">
-          <div role="tablist" aria-label="View" className="inline-flex rounded-lg bg-ink-100 p-1 dark:bg-ink-800">
-            <button type="button" role="tab" aria-selected={view === "sheet"} onClick={() => setView("sheet")} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "sheet" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}><Table2 size={14} /> Excel mode</button>
-            <button type="button" role="tab" aria-selected={view === "sites"} onClick={() => setView("sites")} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "sites" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}><FolderOpen size={14} /> Sites &amp; brochures</button>
-            <button type="button" role="tab" aria-selected={view === "cards"} onClick={() => { setView("cards"); fetchProperties(1); }} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "cards" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}><LayoutGrid size={14} /> Cards</button>
+          <div
+            role="tablist"
+            aria-label="View"
+            className="inline-flex rounded-lg bg-ink-100 p-1 dark:bg-ink-800"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "sheet"}
+              onClick={() => setView("sheet")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "sheet" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}
+            >
+              <Table2 size={14} /> Excel mode
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "sites"}
+              onClick={() => setView("sites")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "sites" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}
+            >
+              <FolderOpen size={14} /> Sites &amp; brochures
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "cards"}
+              onClick={() => {
+                setView("cards");
+                fetchProperties(1);
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "cards" ? "bg-white text-ink-900 shadow-sm dark:bg-ink-700 dark:text-white" : "text-ink-500 dark:text-ink-300"}`}
+            >
+              <LayoutGrid size={14} /> Cards
+            </button>
           </div>
           <a
             href={propertyApi.exportUrl()}
@@ -397,156 +428,161 @@ export default function PropertiesPage() {
           search={search}
           city={city}
           refreshKey={sheetKey}
-          onOpenFull={(property) => { setEditingProperty(property); setShowForm(true); }}
-          onAddBrochure={(projectName) => { setFocusSite(projectName); setView("sites"); }}
+          onOpenFull={(property) => {
+            setEditingProperty(property);
+            setShowForm(true);
+          }}
+          onAddBrochure={(projectName) => {
+            setFocusSite(projectName);
+            setView("sites");
+          }}
         />
       ) : (
-      <>
-      {/* ======================================
+        <>
+          {/* ======================================
           PROPERTY LIST
       ====================================== */}
 
-      {loading ? (
-        <div className="card mt-4 py-16 text-center text-ink-400">
-          Loading...
-        </div>
-      ) : properties.length === 0 ? (
-        <div className="card mt-4 py-16 text-center text-ink-400">
-          No properties yet. Add one to get started.
-        </div>
-      ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {properties.map((p) => (
-            <div key={p._id} className="card relative overflow-hidden p-0">
-              <div className="relative h-40 w-full bg-ink-100 dark:bg-ink-800">
-                {p.images?.[0] ? (
-                  <img
-                    src={p.images[0]}
-                    alt={p.projectName}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-ink-300">
-                    <Home size={32} />
-                  </div>
-                )}
-
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p._id)}
-                  onChange={() => toggleSelect(p._id)}
-                  className="absolute left-2 top-2 h-4 w-4"
-                />
-
-                {!p.isActive && (
-                  <span className="absolute right-2 top-2 rounded-full bg-gray-800/80 px-2 py-0.5 text-xs font-medium text-white">
-                    Inactive
-                  </span>
-                )}
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-start justify-between">
-                  <h3 className="font-display text-base font-semibold text-ink-900 dark:text-white">
-                    {p.projectName || "Property"}
-                  </h3>
-
-                  {p.bhk && (
-                    <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
-                      {p.bhk} BHK
-                    </span>
-                  )}
-                </div>
-
-                {p.location && (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-ink-500 dark:text-ink-400">
-                    <MapPin size={12} />
-                    {p.location}
-                    {p.city ? `, ${p.city}` : ""}
-                  </p>
-                )}
-
-                <p className="mt-2 text-sm font-medium text-ink-700 dark:text-ink-200">
-                  {formatBudget(p.budgetMin, p.budgetMax)}
-                </p>
-
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {p.propertyType && (
-                    <span className="rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300">
-                      {p.propertyType}
-                    </span>
-                  )}
-
-                  {p.parking && (
-                    <span className="flex items-center gap-1 rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300">
-                      <Car size={10} />
-                      Parking
-                    </span>
-                  )}
-
-                  {(p.amenities || []).slice(0, 2).map((a) => (
-                    <span
-                      key={a}
-                      className="rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300"
-                    >
-                      {a}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex justify-end gap-2 border-t border-ink-100 pt-3 dark:border-ink-800">
-                  <button
-                    onClick={() => {
-                      setEditingProperty(p);
-                      setShowForm(true);
-                    }}
-                    className="text-ink-400 hover:text-brand-600"
-                  >
-                    <Pencil size={16} />
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(p._id)}
-                    className="text-ink-400 hover:text-red-600"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
+          {loading ? (
+            <div className="card mt-4 py-16 text-center text-ink-400">
+              Loading...
             </div>
-          ))}
-        </div>
-      )}
+          ) : properties.length === 0 ? (
+            <div className="card mt-4 py-16 text-center text-ink-400">
+              No properties yet. Add one to get started.
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {properties.map((p) => (
+                <div key={p._id} className="card relative overflow-hidden p-0">
+                  <div className="relative h-40 w-full bg-ink-100 dark:bg-ink-800">
+                    {p.images?.[0] ? (
+                      <img
+                        src={p.images[0]}
+                        alt={p.projectName}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-ink-300">
+                        <Home size={32} />
+                      </div>
+                    )}
 
-      {/* ======================================
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(p._id)}
+                      onChange={() => toggleSelect(p._id)}
+                      className="absolute left-2 top-2 h-4 w-4"
+                    />
+
+                    {!p.isActive && (
+                      <span className="absolute right-2 top-2 rounded-full bg-gray-800/80 px-2 py-0.5 text-xs font-medium text-white">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-display text-base font-semibold text-ink-900 dark:text-white">
+                        {p.projectName || "Property"}
+                      </h3>
+
+                      {p.bhk && (
+                        <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
+                          {p.bhk} BHK
+                        </span>
+                      )}
+                    </div>
+
+                    {p.location && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-ink-500 dark:text-ink-400">
+                        <MapPin size={12} />
+                        {p.location}
+                        {p.city ? `, ${p.city}` : ""}
+                      </p>
+                    )}
+
+                    <p className="mt-2 text-sm font-medium text-ink-700 dark:text-ink-200">
+                      {formatBudget(p.budgetMin, p.budgetMax)}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {p.propertyType && (
+                        <span className="rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+                          {p.propertyType}
+                        </span>
+                      )}
+
+                      {p.parking && (
+                        <span className="flex items-center gap-1 rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+                          <Car size={10} />
+                          Parking
+                        </span>
+                      )}
+
+                      {(p.amenities || []).slice(0, 2).map((a) => (
+                        <span
+                          key={a}
+                          className="rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300"
+                        >
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex justify-end gap-2 border-t border-ink-100 pt-3 dark:border-ink-800">
+                      <button
+                        onClick={() => {
+                          setEditingProperty(p);
+                          setShowForm(true);
+                        }}
+                        className="text-ink-400 hover:text-brand-600"
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(p._id)}
+                        className="text-ink-400 hover:text-red-600"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ======================================
           PAGINATION
       ====================================== */}
 
-      {pagination.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button
-            disabled={pagination.page <= 1}
-            onClick={() => fetchProperties(pagination.page - 1)}
-            className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-ink-700"
-          >
-            Prev
-          </button>
+          {pagination.totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                disabled={pagination.page <= 1}
+                onClick={() => fetchProperties(pagination.page - 1)}
+                className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-ink-700"
+              >
+                Prev
+              </button>
 
-          <span className="text-sm text-ink-500 dark:text-ink-400">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
+              <span className="text-sm text-ink-500 dark:text-ink-400">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
 
-          <button
-            disabled={pagination.page >= pagination.totalPages}
-            onClick={() => fetchProperties(pagination.page + 1)}
-            className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-ink-700"
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      </>
+              <button
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => fetchProperties(pagination.page + 1)}
+                className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-ink-700"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* ======================================
@@ -572,7 +608,10 @@ export default function PropertiesPage() {
       {showImport && (
         <ImportPropertiesModal
           onClose={() => setShowImport(false)}
-          onImported={() => { fetchProperties(1); refreshSheet(); }}
+          onImported={() => {
+            fetchProperties(1);
+            refreshSheet();
+          }}
         />
       )}
 
