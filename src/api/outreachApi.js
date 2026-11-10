@@ -17,6 +17,11 @@
 //     api
 //       .post(`/campaigns/${id}/retry-failed`, channel ? { channel } : {})
 //       .then((r) => r.data),
+//   // Meta webhook se aaye delivery failures (131026 / 131049 / 130472 ...)
+//   deliveryFailures: (id) =>
+//     api.get(`/campaigns/${id}/delivery-failures`).then((r) => r.data),
+//   retryDeliveryFailed: (id) =>
+//     api.post(`/campaigns/${id}/retry-delivery-failed`).then((r) => r.data),
 // };
 
 import api from "./axios.js";
@@ -43,4 +48,9 @@ export const campaignApi = {
     api.get(`/campaigns/${id}/delivery-failures`).then((r) => r.data),
   retryDeliveryFailed: (id) =>
     api.post(`/campaigns/${id}/retry-delivery-failed`).then((r) => r.data),
+  // Pehle bheje gaye contacts (WhatsApp): summary + list
+  contactedSummary: () =>
+    api.get("/campaigns/contacted/summary").then((r) => r.data),
+  contactedList: (params) =>
+    api.get("/campaigns/contacted", { params }).then((r) => r.data),
 };
